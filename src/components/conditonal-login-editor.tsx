@@ -50,6 +50,7 @@ export function ConditionalLogicEditor({
     } else {
       // Disable conditional logic
       const { conditionalLogic, ...rest } = currentQuestion;
+      console.log(conditionalLogic);
       updateQuestion(rest);
     }
   };
