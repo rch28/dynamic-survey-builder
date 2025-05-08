@@ -11,63 +11,68 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { ConditionalLogic, Question } from "@/types";
+import { useSurveyStore } from "@/store/survey-store";
+import { hasOptions, type Question } from "@/types/survey";
 
 interface ConditionalLogicEditorProps {
-  question: Question;
+  questionId: string;
   questions: Question[];
-  onChange: (question: Question) => void;
 }
 
 export function ConditionalLogicEditor({
-  question,
+  questionId,
   questions,
-  onChange,
 }: ConditionalLogicEditorProps) {
-  const enableConditionalLogic = !!question.conditionalLogic?.dependsOn;
+  const updateQuestion = useSurveyStore((state) => state.updateQuestion);
+  const currentQuestion = useSurveyStore((state) =>
+    state.survey.questions.find((q) => q.id === questionId)
+  );
+
+  if (!currentQuestion) {
+    return null;
+  }
+
+  const enableConditionalLogic = !!currentQuestion.conditionalLogic?.dependsOn;
 
   const handleEnableChange = (checked: boolean) => {
     if (checked) {
       // Enable conditional logic with default values
       const firstQuestion = questions[0];
-      onChange({
-        ...question,
+      updateQuestion({
+        ...currentQuestion,
         conditionalLogic: {
           dependsOn: firstQuestion?.id,
-          showWhen:
-            firstQuestion?.type === "multiple-choice" ||
-            firstQuestion?.type === "checkbox" ||
-            firstQuestion?.type === "dropdown"
-              ? [firstQuestion.options?.[0] || ""]
-              : [],
+          showWhen: hasOptions(firstQuestion)
+            ? [firstQuestion.options[0] || ""]
+            : [],
         },
       });
     } else {
       // Disable conditional logic
-      const { conditionalLogic, ...rest } = question;
-      console.log("Conditional logic disabled", conditionalLogic);
-      onChange(rest);
+      const { conditionalLogic, ...rest } = currentQuestion;
+      updateQuestion(rest);
     }
   };
 
   const handleDependsOnChange = (questionId: string) => {
     const dependentQuestion = questions.find((q) => q.id === questionId);
-    onChange({
-      ...question,
+    if (!dependentQuestion) return;
+
+    updateQuestion({
+      ...currentQuestion,
       conditionalLogic: {
         dependsOn: questionId,
-        showWhen:
-          dependentQuestion?.type === "multiple-choice" ||
-          dependentQuestion?.type === "checkbox" ||
-          dependentQuestion?.type === "dropdown"
-            ? [dependentQuestion.options?.[0] || ""]
-            : [],
+        showWhen: hasOptions(dependentQuestion)
+          ? [dependentQuestion.options[0] || ""]
+          : [],
       },
     });
   };
 
   const handleShowWhenChange = (option: string, checked: boolean) => {
-    const currentShowWhen = question.conditionalLogic?.showWhen || [];
+    if (!currentQuestion.conditionalLogic) return;
+
+    const currentShowWhen = currentQuestion.conditionalLogic.showWhen || [];
     let newShowWhen: string[];
 
     if (checked) {
@@ -76,17 +81,17 @@ export function ConditionalLogicEditor({
       newShowWhen = currentShowWhen.filter((item) => item !== option);
     }
 
-    onChange({
-      ...question,
+    updateQuestion({
+      ...currentQuestion,
       conditionalLogic: {
-        ...(question.conditionalLogic as ConditionalLogic),
+        ...currentQuestion.conditionalLogic,
         showWhen: newShowWhen,
       },
     });
   };
 
   const dependentQuestion = questions.find(
-    (q) => q.id === question.conditionalLogic?.dependsOn
+    (q) => q.id === currentQuestion.conditionalLogic?.dependsOn
   );
 
   return (
@@ -107,7 +112,7 @@ export function ConditionalLogicEditor({
               Show this question based on the answer to
             </Label>
             <Select
-              value={question.conditionalLogic?.dependsOn}
+              value={currentQuestion.conditionalLogic?.dependsOn}
               onValueChange={handleDependsOnChange}
             >
               <SelectTrigger id="depends-on">
@@ -123,37 +128,31 @@ export function ConditionalLogicEditor({
             </Select>
           </div>
 
-          {dependentQuestion &&
-            (dependentQuestion.type === "multiple-choice" ||
-              dependentQuestion.type === "checkbox" ||
-              dependentQuestion.type === "dropdown") && (
-              <Card>
-                <CardContent className="pt-6">
+          {dependentQuestion && hasOptions(dependentQuestion) && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <Label>Show when answer is</Label>
                   <div className="space-y-2">
-                    <Label>Show when answer is</Label>
-                    <div className="space-y-2">
-                      {dependentQuestion.options?.map((option) => (
-                        <div
-                          key={option}
-                          className="flex items-center space-x-2"
-                        >
-                          <Checkbox
-                            id={`option-${option}`}
-                            checked={(
-                              question.conditionalLogic?.showWhen || []
-                            ).includes(option)}
-                            onCheckedChange={(checked) =>
-                              handleShowWhenChange(option, checked === true)
-                            }
-                          />
-                          <Label htmlFor={`option-${option}`}>{option}</Label>
-                        </div>
-                      ))}
-                    </div>
+                    {dependentQuestion.options.map((option) => (
+                      <div key={option} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`option-${option}`}
+                          checked={(
+                            currentQuestion.conditionalLogic?.showWhen || []
+                          ).includes(option)}
+                          onCheckedChange={(checked) =>
+                            handleShowWhenChange(option, checked === true)
+                          }
+                        />
+                        <Label htmlFor={`option-${option}`}>{option}</Label>
+                      </div>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

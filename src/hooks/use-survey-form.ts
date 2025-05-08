@@ -14,11 +14,10 @@ export function useSurveyForm() {
   );
   const isDirty = useSurveyStore((state) => state.isDirty);
   const markAsSaved = useSurveyStore((state) => state.markAsSaved);
-  const validatedSurvey = surveySchema.parse(survey);
   // Initialize the form with the current survey data
   const form = useForm<Survey>({
     resolver: zodResolver(surveySchema),
-    defaultValues: validatedSurvey,
+    defaultValues: survey,
   });
 
   // Update the form when the survey changes

@@ -1,10 +1,11 @@
-import React from "react";
+"use client";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { cn } from "@/lib/utils";
 import { GripVertical, Trash2 } from "lucide-react";
-import { Button } from "./ui/button";
-import { Question, QuestionType } from "@/types";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { type Question, QuestionType } from "@/types/survey";
 
 interface QuestionItemProps {
   question: Question;
@@ -13,12 +14,12 @@ interface QuestionItemProps {
   onRemove: () => void;
 }
 
-const QuestionItem = ({
+export function QuestionItem({
   question,
   isSelected,
   onClick,
   onRemove,
-}: QuestionItemProps) => {
+}: QuestionItemProps) {
   const {
     attributes,
     listeners,
@@ -29,29 +30,31 @@ const QuestionItem = ({
   } = useSortable({
     id: question.id,
   });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  const getQuestionTypeLabel = (type: QuestionType): string => {
+  const getQuestionTypeLabel = (type: QuestionType) => {
     switch (type) {
-      case "text":
+      case QuestionType.TEXT:
         return "Text";
-      case "multiple-choice":
+      case QuestionType.MULTIPLE_CHOICE:
         return "Multiple Choice";
-      case "checkbox":
+      case QuestionType.CHECKBOX:
         return "Checkbox";
-      case "dropdown":
+      case QuestionType.DROPDOWN:
         return "Dropdown";
-      case "scale":
+      case QuestionType.SCALE:
         return "Scale";
-      case "date":
+      case QuestionType.DATE:
         return "Date";
       default:
         return type;
     }
   };
+
   return (
     <div
       ref={setNodeRef}
@@ -70,6 +73,7 @@ const QuestionItem = ({
       >
         <GripVertical className="h-5 w-5 text-muted-foreground" />
       </div>
+
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{question.title}</div>
         <div className="text-xs text-muted-foreground">
@@ -78,6 +82,7 @@ const QuestionItem = ({
           {question.conditionalLogic?.dependsOn && " • Conditional"}
         </div>
       </div>
+
       <Button
         variant="ghost"
         size="icon"
@@ -92,6 +97,4 @@ const QuestionItem = ({
       </Button>
     </div>
   );
-};
-
-export default QuestionItem;
+}

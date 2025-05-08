@@ -17,7 +17,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { Calendar } from "./ui/calendar";
-import type { Question, ResponseAnswer } from "@/types";
+import type { ResponseAnswer } from "@/types";
+import { Question } from "@/types/survey";
 
 interface PreviewModeProps {
   title: string;
