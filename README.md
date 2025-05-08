@@ -72,7 +72,7 @@ A modern, full-featured survey creation and management platform built with Next.
 ### Prerequisites
 
 - Node.js 18.x or higher
-- npm or yarn
+- [Bun](https://bun.sh/) installed globally
 - Supabase account
 
 ### Installation
