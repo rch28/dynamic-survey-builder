@@ -15,7 +15,7 @@ const baseQuestionSchema = z.object({
   id: z.string(),
   title: z.string().min(1, "Question text is required"),
   description: z.string().optional(),
-  required: z.boolean().default(false),
+  required: z.boolean().default(false).optional(),
 });
 
 // Text Question Schema
@@ -46,8 +46,8 @@ export const dropdownQuestionSchema = optionsQuestionSchema.extend({
 // Scale Question Schema
 export const scaleQuestionSchema = baseQuestionSchema.extend({
   type: z.literal(QuestionType.SCALE),
-  min: z.number().default(1),
-  max: z.number().default(10),
+  min: z.number().default(1).optional(),
+  max: z.number().default(10).optional(),
   minLabel: z.string().optional(),
   maxLabel: z.string().optional(),
 });
