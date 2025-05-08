@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Survey Builder
 
-## Getting Started
+A modern, full-featured survey creation and management platform built with Next.js and Supabase.
 
-First, run the development server:
+![Survey Builder Screenshot](public/image.png)
+
+- **Intuitive Survey Builder**: Drag-and-drop interface for creating surveys with various question types
+- **Question Types**: Support for text, multiple-choice, checkbox, dropdown, scale, and date questions
+
+### 🛠️ Admin Panel
+
+- Drag-and-drop interface for adding, removing, and reordering questions.
+- Support for diverse question types: text, multiple choice, checkbox, dropdown, scale, and date.
+- Conditional logic to dynamically show/hide questions based on user responses.
+- Preview mode to test the survey flow in real time.
+- Import/export survey templates in JSON format for reuse and sharing.
+
+### ⚡ State Management (Zustand)
+
+- Global state for managing survey structure and metadata (title, description, settings).
+- Actions for adding, updating, deleting, and reordering questions.
+- Persistent state in local storage for draft recovery.
+- Undo/redo functionality for survey edits.
+
+### 🧩 React Hook Form Integration
+
+- Dynamic field rendering based on question type.
+- Schema-based validation with Zod for strong TypeScript safety.
+- Nested field arrays to support multi-option questions.
+- Custom hooks to synchronize form state with Zustand.
+- Clear, user-friendly error messages.
+
+### 🧠 TypeScript First
+
+- Strongly typed interfaces for surveys, questions, and responses.
+- Discriminated unions for question types to ensure type-safe rendering and validation.
+- Generic components for reusable and maintainable form logic.
+- Enums for question types and input formats to maintain consistency.
+- Zod schemas tightly integrated with question configurations.
+
+### 🎨 Frontend Experience
+
+- UI consistency via component library (Shadcn/UI or MUI).
+- Fully responsive and mobile-friendly design.
+- Accessibility best practices: ARIA labels, keyboard navigation.
+- Lazy-load preview for performance on large surveys.
+
+### 🌟 Additional Capabilities
+
+- AI-powered question suggestions (coming soon).
+- Dark mode and customizable themes.
+- Secure user authentication and role-based access control.
+- Analytics-ready response collection and visualization.
+
+---
+
+## 🧱 Technologies Used
+
+- **Frontend**: Next.js 15, React, Tailwind CSS, Shadcn/UI
+- **State Management**: Zustand, React Hook Form
+- **Validation**: Zod (with TypeScript)
+- **Backend**: Next.js API Routes, Supabase
+- **Database**: PostgreSQL via Supabase
+- **Auth**: Supabase Auth
+- **Drag and Drop**: `dnd-kit`
+- **Styling**: Tailwind CSS with theme support
+
+---
+
+## 🚧 Getting Started
+
+### Prerequisites
+
+- Node.js 18.x or higher
+- npm or yarn
+- Supabase account
+
+### Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/survey-builder.git
+cd survey-builder
+bun install
+
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
