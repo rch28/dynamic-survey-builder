@@ -8,7 +8,7 @@ import { QuestionType } from "@/types/survey";
 function createNewQuestion(type: QuestionType): Question {
   const base = {
     id: crypto.randomUUID(),
-    title: "",
+    title: `New ${type} question`,
     required: false,
   };
 

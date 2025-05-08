@@ -1,19 +1,24 @@
 "use client";
 
+import type React from "react";
+
 import { useState } from "react";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "./ui/card";
-import { Loader2, MessageSquare, Plus, Send } from "lucide-react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { ScrollArea } from "./ui/scroll-area";
-import { Question, QuestionType } from "@/types";
+} from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Send, Plus, MessageSquare } from "lucide-react";
+
+import { useSurveyStore } from "@/store/survey-store";
+import type { QuestionType } from "@/types/survey";
+import { toast } from "sonner";
+
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -26,12 +31,13 @@ interface SuggestedQuestion {
   question: string;
   options?: string[];
 }
-interface QuestionSuggestionChatProps {
-  onAddQuestion: (question: Partial<Question>) => void;
-}
-const QuestionSuggestionChat = ({
-  onAddQuestion,
-}: QuestionSuggestionChatProps) => {
+
+export function QuestionSuggestionChat() {
+  const addQuestion = useSurveyStore((state) => state.addQuestion);
+  const updateQuestion = useSurveyStore((state) => state.updateQuestion);
+  const selectQuestion = useSurveyStore((state) => state.selectQuestion);
+  const questions = useSurveyStore((state) => state.survey.questions);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -40,8 +46,9 @@ const QuestionSuggestionChat = ({
         "Hi! I can help you create survey questions. What topic would you like questions about?",
     },
   ]);
-  const [input, setInput] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleSend = async () => {
     if (!input.trim()) return;
 
@@ -64,25 +71,30 @@ const QuestionSuggestionChat = ({
         body: JSON.stringify({ prompt: input }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to get suggestions");
+        throw new Error(data.error || "Failed to get suggestions");
       }
 
-      const data = await response.json();
+      if (!data.questions || !Array.isArray(data.questions)) {
+        throw new Error("Received invalid question data from the server");
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: "Here are some suggested questions based on your topic:",
-        suggestions: data.questions,
+        suggestions: data.questions.map((q: any) => ({
+          ...q,
+          type: q.type as QuestionType,
+        })),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Error getting suggestions:", error);
-      toast.error(
-        "Sorry, I couldn't generate questions right now. Please try again."
-      );
+      toast.error("Error getting suggestions");
 
       // Add error message
       setMessages((prev) => [
@@ -91,7 +103,7 @@ const QuestionSuggestionChat = ({
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            "Sorry, I couldn't generate questions right now. Please try again.",
+            "Sorry, I couldn't generate questions right now. Please try again or contact your administrator to check the API configuration.",
         },
       ]);
     } finally {
@@ -107,22 +119,31 @@ const QuestionSuggestionChat = ({
   };
 
   const handleAddQuestion = (suggestion: SuggestedQuestion) => {
-    // Convert the suggested question to the format expected by the survey builder
-    const newQuestion: Partial<Question> = {
-      type: suggestion.type,
-      title: suggestion.question,
-      required: false,
-      options: suggestion.options,
-    };
+    // Add the question using the store
+    addQuestion(suggestion.type);
 
-    onAddQuestion(newQuestion);
+    // Get the last added question
+    const newQuestion = questions[questions.length - 1];
 
-    toast.success(
-      `Added question: "${suggestion.question}" of type "${suggestion.type}"`
-    );
+    // Update the question with the suggested content
+    if (newQuestion) {
+      updateQuestion({
+        ...newQuestion,
+        title: suggestion.question,
+        options: suggestion.options || (newQuestion as any).options,
+      });
+
+      // Select the new question
+      selectQuestion(newQuestion.id);
+    }
+
+    toast.success("Question added", {
+      description: "The suggested question has been added to your survey.",
+    });
   };
+
   return (
-    <Card>
+    <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
@@ -218,6 +239,4 @@ const QuestionSuggestionChat = ({
       </CardFooter>
     </Card>
   );
-};
-
-export default QuestionSuggestionChat;
+}

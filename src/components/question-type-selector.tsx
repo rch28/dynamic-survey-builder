@@ -18,7 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { QuestionType } from "@/types";
+import { QuestionType } from "@/types/survey";
 
 interface QuestionTypeSelectorProps {
   onSelect: (type: QuestionType) => void;
@@ -30,24 +30,36 @@ export function QuestionTypeSelector({ onSelect }: QuestionTypeSelectorProps) {
     label: string;
     icon: React.ReactNode;
   }[] = [
-    { type: "text", label: "Text", icon: <Type className="h-4 w-4" /> },
     {
-      type: "multiple-choice",
+      type: QuestionType.TEXT,
+      label: "Text",
+      icon: <Type className="h-4 w-4" />,
+    },
+    {
+      type: QuestionType.MULTIPLE_CHOICE,
       label: "Multiple Choice",
       icon: <ListChecks className="h-4 w-4" />,
     },
     {
-      type: "checkbox",
+      type: QuestionType.CHECKBOX,
       label: "Checkbox",
       icon: <CheckSquare className="h-4 w-4" />,
     },
     {
-      type: "dropdown",
+      type: QuestionType.DROPDOWN,
       label: "Dropdown",
       icon: <ChevronDown className="h-4 w-4" />,
     },
-    { type: "scale", label: "Scale", icon: <BarChart3 className="h-4 w-4" /> },
-    { type: "date", label: "Date", icon: <Calendar className="h-4 w-4" /> },
+    {
+      type: QuestionType.SCALE,
+      label: "Scale",
+      icon: <BarChart3 className="h-4 w-4" />,
+    },
+    {
+      type: QuestionType.DATE,
+      label: "Date",
+      icon: <Calendar className="h-4 w-4" />,
+    },
   ];
 
   return (

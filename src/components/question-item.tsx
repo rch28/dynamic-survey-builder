@@ -14,7 +14,7 @@ interface QuestionItemProps {
   onRemove: () => void;
 }
 
-export function QuestionItem({
+export function  QuestionItem({
   question,
   isSelected,
   onClick,

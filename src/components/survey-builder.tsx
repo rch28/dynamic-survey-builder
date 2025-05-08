@@ -19,20 +19,20 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Separator } from "./ui/separator";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { QuestionTypeSelector } from "./question-type-selector";
-import QuestionItem from "./question-item";
 import { QuestionEditor } from "./question-editor";
 import { ConditionalLogicEditor } from "./conditonal-login-editor";
 import PreviewMode from "./preview-mode";
-import QuestionSuggestionChat from "./question-suggestion-chat";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { Question, QuestionType, Survey } from "@/types/survey";
-import { useSurveyStore } from "@/store/survey-store";
+import { QuestionType, Survey } from "@/types/survey";
 import { useSurveyForm } from "@/hooks/use-survey-form";
 import { Form } from "./ui/form";
 import { Input } from "./ui/input";
+import { QuestionItem } from "./question-item";
+import { useHistory, useQuestions, useSurvey } from "@/hooks/use-store";
+import { QuestionTypeSelector } from "./question-type-selector";
+import { QuestionSuggestionChat } from "./question-suggestion-chat";
 
 interface SurveyBuilderProps {
   initialSurvey?: Survey | null;
@@ -40,34 +40,15 @@ interface SurveyBuilderProps {
 
 const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
   // Use Zustand store instead of local state
-  const survey = useSurveyStore((state) => state.survey);
-  const setSurvey = useSurveyStore((state) => state.setSurvey);
-  const selectedQuestionId = useSurveyStore(
-    (state) => state.selectedQuestionId
-  );
-  const selectQuestion = useSurveyStore((state) => state.selectQuestion);
-  const addQuestion = useSurveyStore((state) => state.addQuestion);
-  const removeQuestion = useSurveyStore((state) => state.removeQuestion);
-  const reorderQuestions = useSurveyStore((state) => state.reorderQuestions);
-  const updateSurveyTitle = useSurveyStore((state) => state.updateSurveyTitle);
-  const undo = useSurveyStore((state) => state.undo);
-  const redo = useSurveyStore((state) => state.redo);
-  const isDirty = useSurveyStore((state) => state.isDirty);
-  const markAsSaved = useSurveyStore((state) => state.markAsSaved);
+  const { survey, setSurvey, updateTitle, isDirty, markAsSaved } = useSurvey();
+  const { selectedId, select, add, remove, reorder } = useQuestions();
+  const { undo, redo, canUndo, canRedo } = useHistory();
 
   // Use React Hook Form
   const { form, onSubmit } = useSurveyForm();
-  const [questions, setQuestions] = useState<Question[]>(
-    initialSurvey?.questions || []
-  );
-  const [surveyTitle, setSurveyTitle] = useState<string>(
-    initialSurvey?.title || "Untitled Survey"
-  );
+
   const [surveyId, setSurveyId] = useState<string | null>(
     initialSurvey?.id || null
-  );
-  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(
-    null
   );
 
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -79,12 +60,15 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
   const router = useRouter();
   useEffect(() => {
     if (initialSurvey) {
-      setQuestions(initialSurvey.questions || []);
-      setSurveyTitle(initialSurvey.title || "Untitled Survey");
+      setSurvey({
+        id: initialSurvey.id,
+        title: initialSurvey.title || "Untitled Survey",
+        description: initialSurvey.description || "",
+        questions: initialSurvey.questions || [],
+      });
       setSurveyId(initialSurvey.id || null);
-      // setIsPublished(initialSurvey.published || false);
     }
-  }, [initialSurvey]);
+  }, [initialSurvey, setSurvey]);
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -96,60 +80,13 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
         (item) => item.id === over.id
       );
 
-      reorderQuestions(oldIndex, newIndex);
-      // setQuestions((items) => {
-      //   const oldIndex = items.findIndex((item) => item.id === active.id);
-      //   const newIndex = items.findIndex((item) => item.id === over.id);
-
-      //   return arrayMove(items, oldIndex, newIndex);
-      // });
+      reorder(oldIndex, newIndex);
     }
   };
   const handleQuestionTypeSelect = (type: QuestionType) => {
-    addQuestion(type);
+    add(type);
   };
-  // // add a question
-  // const addQuestion = (type: QuestionType) => {
-  //   const newQuestion: Question = {
-  //     id: `question-${Date.now()}`,
-  //     type,
-  //     title: `New ${type} Question`,
-  //     required: false,
-  //     options:
-  //       type === "multiple-choice" || type === "checkbox" || type === "dropdown"
-  //         ? ["Option 1", "Option 2"]
-  //         : undefined,
-  //     conditionalLogic: undefined,
-  //   };
-  //   setQuestions((prev) => [...prev, newQuestion]);
-  //   setSelectedQuestion(newQuestion);
-  // };
-  // update question
-  const updateQuestion = (updatedQuestion: Question) => {
-    setQuestions((prevQuestions) =>
-      prevQuestions.map((q) =>
-        q.id === updatedQuestion.id ? updatedQuestion : q
-      )
-    );
-    setSelectedQuestion(updatedQuestion);
-  };
-  // const removeQuestion = (id: string) => {
-  //   setQuestions((prev) => prev.filter((question) => question.id !== id));
-  //   if (selectedQuestion?.id === id) {
-  //     setSelectedQuestion(null);
-  //   }
-  //   // Also remove any conditional logic that depends on this question
-  //   setQuestions((prevQuestions) =>
-  //     prevQuestions.map((q) => {
-  //       if (q.conditionalLogic?.dependsOn === id) {
-  //         const { conditionalLogic, ...rest } = q;
-  //         console.log(conditionalLogic);
-  //         return rest;
-  //       }
-  //       return q;
-  //     })
-  //   );
-  // };
+
   // import survey data from a JSON file
   const importSurvey = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -160,12 +97,17 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
         const data = e.target?.result as string;
         const surveyData = JSON.parse(data);
         if (surveyData.title && Array.isArray(surveyData.questions)) {
-          setSurveyTitle(surveyData.title);
-          setQuestions(surveyData.questions);
+          setSurvey({
+            title: surveyData.title,
+            description: surveyData.description || "",
+            questions: surveyData.questions,
+          });
         }
       } catch (e) {
         console.error("Error parsing JSON file", e);
-        alert("Failed to import survey. The file format is invalid.");
+        toast.error("Import Failed", {
+          description: "Failed to import survey. The file format is invalid.",
+        });
       }
     };
     reader.readAsText(file);
@@ -175,8 +117,8 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
   const exportSurvey = () => {
     // get survey data
     const surveyData = {
-      title: surveyTitle,
-      questions,
+      title: survey.title,
+      questions: survey.questions,
     };
     const dataStr = JSON.stringify(surveyData, null, 2);
 
@@ -184,7 +126,7 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
-    const defaultFileName = `${surveyTitle.replace(/\s+/g, "_")}.json`;
+    const defaultFileName = `${survey.title.replace(/\s+/g, "_")}.json`;
     const linkElement = document.createElement("a");
     linkElement.setAttribute("href", url);
     linkElement.setAttribute("download", defaultFileName);
@@ -248,24 +190,6 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
     }
   };
 
-  // Add this function to handle adding suggested questions
-  const addSuggestedQuestion = (questionData: Partial<Question>) => {
-    if (questionData.type) {
-      addQuestion(questionData.type as QuestionType);
-
-      // Get the last added question and update it
-      const lastQuestion = useSurveyStore
-        .getState()
-        .survey.questions.slice(-1)[0];
-      if (lastQuestion) {
-        useSurveyStore.getState().updateQuestion({
-          ...lastQuestion,
-          title: questionData.title || lastQuestion.title,
-          options: questionData.options || (lastQuestion as any).options,
-        });
-      }
-    }
-  };
   // const togglePublishStatus = async () => {
   //   if (!surveyId) {
   //     // If survey hasn't been saved yet, save it first
@@ -339,9 +263,7 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                     <h3 className="font-semibold">AI Question Suggestions</h3>
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <QuestionSuggestionChat
-                      onAddQuestion={addSuggestedQuestion}
-                    />
+                    <QuestionSuggestionChat />
                   </div>
                 </div>
               </SheetContent>
@@ -376,13 +298,13 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
           </TabList>
 
           <div className="flex items-center gap-4">
-            <input
+            {/* <input
               type="text"
               value={surveyTitle}
               onChange={(e) => setSurveyTitle(e.target.value)}
               className="text-xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary/20 rounded px-2 py-1"
               placeholder="Survey Title"
-            />
+            /> */}
 
             {/* Publish toggle */}
             {/* <div className="flex items-center space-x-2">
@@ -413,7 +335,7 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <Input
                 value={survey.title}
-                onChange={(e) => updateSurveyTitle(e.target.value)}
+                onChange={(e) => updateTitle(e.target.value)}
                 className="text-xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary/20 rounded px-2 py-1"
               />
             </form>
@@ -430,12 +352,12 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                 </div>
                 {/* Question  */}
                 <div className="border rounded-md p-4 min-h-[400px] bg-muted/20">
-                  {questions.length === 0 ? (
+                  {survey?.questions?.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[300px] text-center">
                       <div className="text-muted-foreground mb-4">
                         No questions added yet
                       </div>
-                      <Button onClick={() => addQuestion(QuestionType.TEXT)}>
+                      <Button onClick={() => add(QuestionType.TEXT)}>
                         <Plus className="mr-2 h-4 w-4" />
                         Add your first question
                       </Button>
@@ -447,7 +369,7 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                       modifiers={[restrictToVerticalAxis]}
                     >
                       <SortableContext
-                        items={questions.map((q) => q.id)}
+                        items={survey?.questions.map((q) => q.id)}
                         strategy={verticalListSortingStrategy}
                       >
                         <div className="space-y-2">
@@ -468,13 +390,13 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
               </div>
               {/* Question Editor */}
               <div>
-                {selectedQuestionId ? (
+                {selectedId ? (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-lg font-medium mb-4">
                         Question Settings
                       </h2>
-                      <QuestionEditor questionId={selectedQuestionId} />
+                      <QuestionEditor questionId={selectedId} />
                     </div>
                     <Separator />
                     <div>
@@ -482,9 +404,9 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                         Conditional Logic
                       </h2>
                       <ConditionalLogicEditor
-                        questionId={selectedQuestionId}
+                        questionId={selectedId}
                         questions={survey.questions.filter(
-                          (q) => q.id !== selectedQuestionId
+                          (q) => q.id !== selectedId
                         )}
                       />
                     </div>
