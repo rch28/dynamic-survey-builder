@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { produce } from "immer";
-import { v4 as uuidv4 } from "uuid";
 import type { Survey, Question } from "@/types/survey";
 import { QuestionType } from "@/types/survey";
 
@@ -160,25 +159,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
 
       // Question actions
       addQuestion: (type) => {
-        let newQuestion: Question = createNewQuestion(type);
-
-        // Add options for question types that need them
-        if (
-          type === QuestionType.MULTIPLE_CHOICE ||
-          type === QuestionType.CHECKBOX ||
-          type === QuestionType.DROPDOWN
-        ) {
-          (newQuestion as any).options = ["Option 1", "Option 2"];
-        }
-
-        // Add scale properties for scale questions
-        if (type === QuestionType.SCALE) {
-          (newQuestion as any).min = 1;
-          (newQuestion as any).max = 10;
-          (newQuestion as any).minLabel = "Not at all likely";
-          (newQuestion as any).maxLabel = "Extremely likely";
-        }
-
+        const newQuestion: Question = createNewQuestion(type);
         set(
           produce((state: SurveyState) => {
             state.survey.questions.push(newQuestion);

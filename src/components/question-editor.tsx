@@ -11,11 +11,18 @@ import { Slider } from "@/components/ui/slider";
 import { Form } from "@/components/ui/form";
 import { useQuestionForm } from "@/hooks/use-question-form";
 import { useSurveyStore } from "@/store/survey-store";
-import { hasOptions, isScaleQuestion } from "@/types/survey";
+import {
+  getOptionsQuestion,
+  hasOptions,
+  isScaleQuestion,
+} from "@/types/survey";
 
 interface QuestionEditorProps {
   questionId: string;
 }
+
+type ScaleKey = "min" | "max" | "minLabel" | "maxLabel";
+type ScaleValue<K extends ScaleKey> = K extends "min" | "max" ? number : string;
 
 export function QuestionEditor({ questionId }: QuestionEditorProps) {
   const [newOption, setNewOption] = useState("");
@@ -54,42 +61,44 @@ export function QuestionEditor({ questionId }: QuestionEditorProps) {
   };
 
   const addOption = () => {
-    if (!newOption.trim() || !hasOptions(currentQuestion)) return;
+    if (!newOption.trim()) return;
 
-    const options = [...(currentQuestion.options || []), newOption.trim()];
+    const optionsQuestion = getOptionsQuestion(currentQuestion);
+    if (!optionsQuestion) return;
+
+    const options = [...optionsQuestion.options, newOption.trim()];
     updateQuestion({
-      ...currentQuestion,
+      ...optionsQuestion,
       options,
     });
     setNewOption("");
   };
 
   const removeOption = (index: number) => {
-    if (!hasOptions(currentQuestion)) return;
+    const optionsQuestion = getOptionsQuestion(currentQuestion);
+    if (!optionsQuestion) return;
 
-    const options = [...currentQuestion.options];
+    const options = [...optionsQuestion.options];
     options.splice(index, 1);
     updateQuestion({
-      ...currentQuestion,
+      ...optionsQuestion,
       options,
     });
   };
 
   const updateOption = (index: number, value: string) => {
-    if (!hasOptions(currentQuestion)) return;
+    const optionsQuestion = getOptionsQuestion(currentQuestion);
+    if (!optionsQuestion) return;
 
-    const options = [...currentQuestion.options];
+    const options = [...optionsQuestion.options];
     options[index] = value;
     updateQuestion({
-      ...currentQuestion,
+      ...optionsQuestion,
       options,
     });
   };
 
-  const updateScaleValue = (
-    key: "min" | "max" | "minLabel" | "maxLabel",
-    value: any
-  ) => {
+  const updateScaleValue = (key: ScaleKey, value: ScaleValue<ScaleKey>) => {
     if (!isScaleQuestion(currentQuestion)) return;
 
     updateQuestion({

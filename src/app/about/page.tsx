@@ -88,7 +88,7 @@ export default function AboutPage() {
             help you make better decisions based on real data.
           </p>
           <p className="text-lg text-muted-foreground">
-            Whether you're conducting academic research, gathering customer
+            Whether you&apos;re conducting academic research, gathering customer
             feedback, or planning an event, Survey Builder gives you the tools
             to create professional surveys in minutes.
           </p>

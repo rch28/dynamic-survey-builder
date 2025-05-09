@@ -135,10 +135,22 @@ export function isDateQuestion(question: Question): question is DateQuestion {
 
 export function hasOptions(
   question: Question
-): question is MultipleChoiceQuestion | CheckboxQuestion | DropdownQuestion {
-  return (
+): question is Question & { options: string[] } {
+  return ["MULTIPLE_CHOICE", "CHECKBOX", "DROPDOWN"].includes(question.type);
+}
+
+export function getOptionsQuestion(
+  question: Question
+): MultipleChoiceQuestion | CheckboxQuestion | DropdownQuestion | null {
+  if (
     question.type === QuestionType.MULTIPLE_CHOICE ||
     question.type === QuestionType.CHECKBOX ||
     question.type === QuestionType.DROPDOWN
-  );
+  ) {
+    return question as
+      | MultipleChoiceQuestion
+      | CheckboxQuestion
+      | DropdownQuestion;
+  }
+  return null;
 }

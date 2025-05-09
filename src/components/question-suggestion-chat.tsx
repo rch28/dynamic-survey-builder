@@ -16,7 +16,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Send, Plus, MessageSquare } from "lucide-react";
 
 import { useSurveyStore } from "@/store/survey-store";
-import type { QuestionType } from "@/types/survey";
+import {
+  getOptionsQuestion,
+  Question,
+  type QuestionType,
+} from "@/types/survey";
 import { toast } from "sonner";
 
 interface Message {
@@ -85,7 +89,7 @@ export function QuestionSuggestionChat() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: "Here are some suggested questions based on your topic:",
-        suggestions: data.questions.map((q: any) => ({
+        suggestions: data.questions.map((q: Question) => ({
           ...q,
           type: q.type as QuestionType,
         })),
@@ -124,19 +128,24 @@ export function QuestionSuggestionChat() {
 
     // Get the last added question
     const newQuestion = questions[questions.length - 1];
-
+    if (!newQuestion) return;
+    const optionsQuestion = getOptionsQuestion(newQuestion);
     // Update the question with the suggested content
-    if (newQuestion) {
+    if (optionsQuestion) {
+      // Handle questions with options (multiple choice, checkbox, dropdown)
+      updateQuestion({
+        ...optionsQuestion,
+        title: suggestion.question,
+        options: suggestion.options ?? optionsQuestion.options,
+      });
+    } else {
+      // Handle other question types (text, scale, date)
       updateQuestion({
         ...newQuestion,
         title: suggestion.question,
-        options: suggestion.options || (newQuestion as any).options,
       });
-
-      // Select the new question
-      selectQuestion(newQuestion.id);
     }
-
+    selectQuestion(newQuestion.id);
     toast.success("Question added", {
       description: "The suggested question has been added to your survey.",
     });

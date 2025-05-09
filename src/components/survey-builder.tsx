@@ -4,18 +4,10 @@ import { Button } from "./ui/button";
 import { DndContext, type DragEndEvent, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
-  arrayMove,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  Download,
-  Link2,
-  MessageSquare,
-  Plus,
-  Save,
-  Upload,
-} from "lucide-react";
+import { Download, MessageSquare, Plus, Save, Upload } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Separator } from "./ui/separator";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
@@ -30,7 +22,7 @@ import { useSurveyForm } from "@/hooks/use-survey-form";
 import { Form } from "./ui/form";
 import { Input } from "./ui/input";
 import { QuestionItem } from "./question-item";
-import { useHistory, useQuestions, useSurvey } from "@/hooks/use-store";
+import { useQuestions, useSurvey } from "@/hooks/use-store";
 import { QuestionTypeSelector } from "./question-type-selector";
 import { QuestionSuggestionChat } from "./question-suggestion-chat";
 
@@ -40,9 +32,8 @@ interface SurveyBuilderProps {
 
 const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
   // Use Zustand store instead of local state
-  const { survey, setSurvey, updateTitle, isDirty, markAsSaved } = useSurvey();
+  const { survey, setSurvey, updateTitle, markAsSaved } = useSurvey();
   const { selectedId, select, add, remove, reorder } = useQuestions();
-  const { undo, redo, canUndo, canRedo } = useHistory();
 
   // Use React Hook Form
   const { form, onSubmit } = useSurveyForm();
@@ -52,9 +43,7 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
   );
 
   const [isChatOpen, setIsChatOpen] = useState(false);
-  // const [isPublished, setIsPublished] = useState<boolean>(
-  //   initialSurvey?.published || false
-  // );
+
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const { user } = useAuth();
   const router = useRouter();
