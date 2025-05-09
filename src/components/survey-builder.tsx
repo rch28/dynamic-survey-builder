@@ -56,6 +56,13 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
         questions: initialSurvey.questions || [],
       });
       setSurveyId(initialSurvey.id || null);
+    } else {
+      setSurvey({
+        id: "",
+        title: "Untitled Survey",
+        description: "",
+        questions: [],
+      });
     }
   }, [initialSurvey, setSurvey]);
   const handleDragEnd = (event: DragEndEvent) => {
