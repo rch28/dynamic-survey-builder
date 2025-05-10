@@ -16,7 +16,7 @@ const baseQuestionSchema = z.object({
   id: z.string(),
   title: z.string().min(1, "Question text is required"),
   description: z.string().optional(),
-  required: z.boolean().default(false).optional(),
+  required: z.boolean().default(false),
 });
 
 // Text Question Schema

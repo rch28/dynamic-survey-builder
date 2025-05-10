@@ -32,7 +32,7 @@ import { Input } from "./ui/input";
 import { QuestionItem } from "./question-item";
 import { QuestionTypeSelector } from "./question-type-selector";
 import { QuestionSuggestionChat } from "./question-suggestion-chat";
-import { useSurveyStore } from "@/store/survey-store";
+import { createInitialSurvey, useSurveyStore } from "@/store/survey-store";
 import { SurveyMetadata } from "./survey-metadata";
 import { SurveyDrafts } from "./survey-drafts";
 
@@ -73,7 +73,10 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
         title: initialSurvey.title || "Untitled Survey",
         description: initialSurvey.description || "",
         questions: initialSurvey.questions || [],
-        metadata: initialSurvey.metadata || {},
+        metadata: {
+          ...createInitialSurvey().metadata,
+          ...initialSurvey.metadata,
+        },
         isDraft: false,
         created_at: initialSurvey.created_at || new Date().toISOString(),
         updated_at: initialSurvey.updated_at || new Date().toISOString(),

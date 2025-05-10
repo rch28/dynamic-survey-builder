@@ -12,11 +12,11 @@ export function useSurveyForm() {
   const updateSurveyDescription = useSurveyStore(
     (state) => state.updateSurveyDescription
   );
+
   const isDirty = useSurveyStore((state) => state.isDirty);
   const markAsSaved = useSurveyStore((state) => state.markAsSaved);
   // Initialize the form with the current survey data
   const form = useForm<Survey>({
-    resolver: zodResolver(surveySchema),
     defaultValues: survey,
   });
 

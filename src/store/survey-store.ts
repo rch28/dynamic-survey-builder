@@ -112,9 +112,13 @@ interface SurveyActions {
   markAsSaved: () => void;
   resetState: () => void;
 }
-
+// Helper function to update timestamps
+const updateTimestamps = (state: SurveyState) => {
+  state.survey.updated_at = new Date().toISOString();
+  state.isDirty = true;
+};
 // Create the initial survey
-const createInitialSurvey = (): Survey => ({
+export const createInitialSurvey = (): Survey => ({
   title: "Untitled Survey",
   description: "",
   questions: [],
@@ -158,8 +162,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
         set(
           produce((state: SurveyState) => {
             state.survey.title = title;
-            state.survey.updated_at = new Date().toISOString();
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -168,8 +171,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
         set(
           produce((state: SurveyState) => {
             state.survey.description = description;
-            state.survey.updated_at = new Date().toISOString();
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -178,8 +180,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
         set(
           produce((state: SurveyState) => {
             state.survey.metadata = { ...state.survey.metadata, ...metadata };
-            state.survey.updated_at = new Date().toISOString();
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -191,8 +192,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
           produce((state: SurveyState) => {
             state.survey.questions.push(newQuestion);
             state.selectedQuestionId = newQuestion.id;
-            state.survey.updated_at = new Date().toISOString();
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -205,8 +205,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             );
             if (index !== -1) {
               state.survey.questions[index] = question;
-              state.survey.updated_at = new Date().toISOString();
-              state.isDirty = true;
+              updateTimestamps(state);
             }
           })
         );
@@ -229,8 +228,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             if (state.selectedQuestionId === id) {
               state.selectedQuestionId = null;
             }
-            state.survey.updated_at = new Date().toISOString();
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -240,8 +238,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
           produce((state: SurveyState) => {
             const [removed] = state.survey.questions.splice(startIndex, 1);
             state.survey.questions.splice(endIndex, 0, removed);
-            state.survey.updated_at = new Date().toISOString();
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
