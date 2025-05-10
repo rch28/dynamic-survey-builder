@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserIcon } from "lucide-react";
 import { ThemeSelector } from "@/components/theme-selector";
-import { logout } from "@/actions/action";
 import { User } from "@supabase/supabase-js";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 
 export function Navbar({ user }: { user: User | null }) {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   if (pathname === "/login" || pathname === "/register") {
     return null;
@@ -81,7 +82,7 @@ export function Navbar({ user }: { user: User | null }) {
                   <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={async () => await logout()}>
+                <DropdownMenuItem onClick={() => logout()}>
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>

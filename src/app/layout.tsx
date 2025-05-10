@@ -27,8 +27,8 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
-          <Navbar user={user} />
           <AuthProvider>
+            <Navbar user={user} />
             {children}
             <Toaster />
           </AuthProvider>

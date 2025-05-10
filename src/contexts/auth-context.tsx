@@ -7,7 +7,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { login as ServerLogin } from "@/actions/action";
+import { login as ServerLogin, logout as ServerLogout } from "@/actions/action";
 
 import type { User } from "@/types";
 
@@ -103,7 +103,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      await fetch("/api/auth/logout", { method: "POST" });
+      await ServerLogout();
       setUser(null);
     } catch (error) {
       console.error("Logout failed:", error);
@@ -119,7 +119,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-const useAuth = ():AuthContextType => {
+const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
