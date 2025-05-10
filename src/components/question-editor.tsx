@@ -11,11 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Form } from "@/components/ui/form";
 import { useQuestionForm } from "@/hooks/use-question-form";
 import { useSurveyStore } from "@/store/survey-store";
-import {
-  getOptionsQuestion,
-  hasOptions,
-  isScaleQuestion,
-} from "@/types/survey";
+import { getOptionsQuestion, isScaleQuestion } from "@/types/survey";
 
 interface QuestionEditorProps {
   questionId: string;

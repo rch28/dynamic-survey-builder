@@ -107,7 +107,7 @@ const initialState: SurveyState = {
 // Create the store
 export const useSurveyStore = create<SurveyState & SurveyActions>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initialState,
 
       // Survey actions
