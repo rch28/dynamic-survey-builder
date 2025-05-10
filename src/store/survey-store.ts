@@ -61,16 +61,11 @@ function createNewQuestion(type: QuestionType): Question {
 }
 
 // Define the history state for undo/redo
-interface HistoryState {
-  past: Survey[];
-  future: Survey[];
-}
 
 // Define the survey store state
 interface SurveyState {
   survey: Survey;
   selectedQuestionId: string | null;
-  history: HistoryState;
   isDirty: boolean;
 }
 
@@ -90,11 +85,6 @@ interface SurveyActions {
   // Selection actions
   selectQuestion: (id: string | null) => void;
 
-  // History actions
-  undo: () => void;
-  redo: () => void;
-  saveToHistory: () => void;
-
   // State management
   markAsSaved: () => void;
   resetState: () => void;
@@ -111,10 +101,6 @@ const createInitialSurvey = (): Survey => ({
 const initialState: SurveyState = {
   survey: createInitialSurvey(),
   selectedQuestionId: null,
-  history: {
-    past: [],
-    future: [],
-  },
   isDirty: false,
 };
 
@@ -129,10 +115,6 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
         set({
           survey,
           selectedQuestionId: null,
-          history: {
-            past: [],
-            future: [],
-          },
           isDirty: false,
         });
       },
@@ -144,7 +126,6 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             state.isDirty = true;
           })
         );
-        get().saveToHistory();
       },
 
       updateSurveyDescription: (description) => {
@@ -154,7 +135,6 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             state.isDirty = true;
           })
         );
-        get().saveToHistory();
       },
 
       // Question actions
@@ -167,7 +147,6 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             state.isDirty = true;
           })
         );
-        get().saveToHistory();
       },
 
       updateQuestion: (question) => {
@@ -182,7 +161,6 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             }
           })
         );
-        get().saveToHistory();
       },
 
       removeQuestion: (id) => {
@@ -206,7 +184,6 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             state.isDirty = true;
           })
         );
-        get().saveToHistory();
       },
 
       reorderQuestions: (startIndex, endIndex) => {
@@ -217,62 +194,11 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             state.isDirty = true;
           })
         );
-        get().saveToHistory();
       },
 
       // Selection actions
       selectQuestion: (id) => {
         set({ selectedQuestionId: id });
-      },
-
-      // History actions
-      saveToHistory: () => {
-        set(
-          produce((state: SurveyState) => {
-            state.history.past.push(JSON.parse(JSON.stringify(state.survey)));
-            state.history.future = [];
-          })
-        );
-      },
-
-      undo: () => {
-        const { survey, history } = get();
-        if (history.past.length === 0) return;
-
-        set(
-          produce((state: SurveyState) => {
-            const newPast = [...state.history.past];
-            const previous = newPast.pop();
-
-            state.history.past = newPast;
-            state.history.future = [
-              JSON.parse(JSON.stringify(survey)),
-              ...state.history.future,
-            ];
-            state.survey = previous!;
-            state.isDirty = true;
-          })
-        );
-      },
-
-      redo: () => {
-        const { survey, history } = get();
-        if (history.future.length === 0) return;
-
-        set(
-          produce((state: SurveyState) => {
-            const newFuture = [...state.history.future];
-            const next = newFuture.shift();
-
-            state.history.past = [
-              ...state.history.past,
-              JSON.parse(JSON.stringify(survey)),
-            ];
-            state.history.future = newFuture;
-            state.survey = next!;
-            state.isDirty = true;
-          })
-        );
       },
 
       // State management

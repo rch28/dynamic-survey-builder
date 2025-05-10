@@ -35,16 +35,3 @@ export function useQuestions() {
     }))
   );
 }
-
-// Convenience hook for history operations
-export function useHistory() {
-  return useSurveyStore(
-    useShallow((state) => ({
-      undo: state.undo,
-      redo: state.redo,
-      canUndo: state.history.past.length > 0,
-      canRedo: state.history.future.length > 0,
-      saveToHistory: state.saveToHistory,
-    }))
-  );
-}
