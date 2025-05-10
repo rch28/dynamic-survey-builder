@@ -68,7 +68,7 @@ function createNewQuestion(type: QuestionType): Question {
 
 // Define a draft State
 interface DraftState {
-  drafts: Record<string, Survey>;
+  draftsCollection: Record<string, Survey>;
 }
 
 // Define the survey store state
@@ -138,7 +138,7 @@ const initialState: SurveyState = {
   selectedQuestionId: null,
   isDirty: false,
   drafts: {
-    drafts: {},
+    draftsCollection: {},
   },
   collaborators: [],
 };
@@ -261,7 +261,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             currentSurvey.updated_at = new Date().toISOString();
 
             // save the draft
-            state.drafts.drafts[draftId] = currentSurvey;
+            state.drafts.draftsCollection[draftId] = currentSurvey;
 
             // update the survey state
             state.survey = currentSurvey;
@@ -272,8 +272,8 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
 
       // load draft
       loadDraft: (id) => {
-        const { drafts } = get().drafts;
-        const draft = drafts[id];
+        const { draftsCollection } = get().drafts;
+        const draft = draftsCollection[id];
 
         if (draft) {
           set({
@@ -287,15 +287,15 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
       deleteDraft: (id) => {
         set(
           produce((state: SurveyState) => {
-            const drafts = { ...state.drafts.drafts };
+            const drafts = { ...state.drafts.draftsCollection };
             delete drafts[id];
-            state.drafts.drafts = drafts;
+            state.drafts.draftsCollection = drafts;
           })
         );
       },
       getDrafts: () => {
-        const { drafts } = get().drafts;
-        return Object.values(drafts);
+        const { draftsCollection } = get().drafts;
+        return Object.values(draftsCollection);
       },
 
       // Collaboration actions
