@@ -34,17 +34,21 @@ export function SurveyMetadata() {
   const [newTag, setNewTag] = useState("");
 
   const handleAddTag = () => {
-    if (newTag.trim() && !survey.metadata.tags.includes(newTag.trim())) {
-      updateMetadata({
-        tags: [...survey.metadata.tags, newTag.trim()],
-      });
-      setNewTag("");
+    if (newTag.trim()) {
+      const currentTags = survey.metadata?.tags ?? [];
+      if (!currentTags.includes(newTag.trim())) {
+        updateMetadata({
+          tags: [...currentTags, newTag.trim()],
+        });
+        setNewTag("");
+      }
     }
   };
 
   const handleRemoveTag = (tag: string) => {
+    const currentTags = survey.metadata?.tags ?? [];
     updateMetadata({
-      tags: survey.metadata.tags.filter((t) => t !== tag),
+      tags: currentTags.filter((t) => t !== tag),
     });
   };
 
@@ -75,7 +79,7 @@ export function SurveyMetadata() {
         <div className="space-y-2">
           <Label htmlFor="tags">Tags</Label>
           <div className="flex flex-wrap gap-2 mb-2">
-            {survey.metadata.tags.map((tag) => (
+            {(survey.metadata?.tags ?? []).map((tag) => (
               <Badge
                 key={tag}
                 variant="secondary"
