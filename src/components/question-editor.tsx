@@ -140,57 +140,65 @@ export function QuestionEditor({ questionId }: QuestionEditorProps) {
           <Label htmlFor="question-required">Required question</Label>
         </div>
 
-        {hasOptions(currentQuestion) && (
-          <div className="space-y-3">
-            <Label>Options</Label>
+        {getOptionsQuestion(currentQuestion) &&
+          (() => {
+            const optionsQuestion = getOptionsQuestion(currentQuestion);
 
-            <div className="space-y-2">
-              {currentQuestion.options.map((option, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    value={option}
-                    onChange={(e) => updateOption(index, e.target.value)}
-                    placeholder={`Option ${index + 1}`}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeOption(index)}
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    disabled={currentQuestion.options.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Remove option</span>
-                  </Button>
+            // This condition is already checked above, but we need it for TypeScript
+            // to understand that optionsQuestion is not null
+            if (!optionsQuestion) return null;
+            return (
+              <div className="space-y-3">
+                <Label>Options</Label>
+
+                <div className="space-y-2">
+                  {optionsQuestion.options.map((option, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        value={option}
+                        onChange={(e) => updateOption(index, e.target.value)}
+                        placeholder={`Option ${index + 1}`}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeOption(index)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        disabled={optionsQuestion.options.length === 1}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remove option</span>
+                      </Button>
+                    </div>
+                  ))}
+
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={newOption}
+                      onChange={(e) => setNewOption(e.target.value)}
+                      placeholder="Add new option"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addOption();
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={addOption}
+                      className="h-8 w-8"
+                      disabled={!newOption.trim()}
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="sr-only">Add option</span>
+                    </Button>
+                  </div>
                 </div>
-              ))}
-
-              <div className="flex items-center gap-2">
-                <Input
-                  value={newOption}
-                  onChange={(e) => setNewOption(e.target.value)}
-                  placeholder="Add new option"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addOption();
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={addOption}
-                  className="h-8 w-8"
-                  disabled={!newOption.trim()}
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="sr-only">Add option</span>
-                </Button>
               </div>
-            </div>
-          </div>
-        )}
+            );
+          })()}
 
         {isScaleQuestion(currentQuestion) && (
           <div className="space-y-4">
