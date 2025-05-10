@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CollaboratorRole } from "./collaboration";
 
 // Question Type Enum
 export enum QuestionType {
@@ -103,12 +104,6 @@ export const surveySchema = z.object({
   isDraft: z.boolean().default(true),
 });
 
-// Collaborator Role Enum
-export enum CollaboratorRole {
-  OWNER = "owner",
-  EDITOR = "editor",
-  VIEWER = "viewer",
-}
 // Collaborator Schema
 export const collaboratorSchema = z.object({
   id: z.string().optional(),

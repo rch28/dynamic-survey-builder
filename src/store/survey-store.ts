@@ -7,7 +7,8 @@ import type {
   SurveyMetadata,
   Collaborator,
 } from "@/types/survey";
-import { QuestionType, type CollaboratorRole } from "@/types/survey";
+import { QuestionType } from "@/types/survey";
+import type { CollaboratorRole } from "@/types/collaboration";
 
 function createNewQuestion(type: QuestionType): Question {
   const base = {
@@ -104,7 +105,7 @@ interface SurveyActions {
 
   // Collaborator Actions
   setCollaborators: (collaborators: Collaborator[]) => void;
-  addCollaborator: (Collaborator: Collaborator) => void;
+  addCollaborator: (collaborator: Collaborator) => void;
   updateCollaborator: (id: string, role: CollaboratorRole) => void;
   removeCollaborator: (id: string) => void;
   // State management

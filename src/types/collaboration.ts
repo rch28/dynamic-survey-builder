@@ -24,7 +24,7 @@ export interface ActivityLog {
   action: string;
   resourceType: string;
   resourceId?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   ipAddress?: string;
   createdAt?: string;
   user?: {
