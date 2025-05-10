@@ -186,37 +186,6 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
     }
   };
 
-  // const togglePublishStatus = async () => {
-  //   if (!surveyId) {
-  //     // If survey hasn't been saved yet, save it first
-  //     const savedSurvey = await saveSurvey();
-  //     if (!savedSurvey) return;
-  //   }
-
-  //   setIsPublished(!isPublished);
-  //   // This will be saved on the next save operation
-  //   toast(isPublished ? "Survey unpublished" : "Survey published", {
-  //     description: isPublished
-  //       ? "The survey is now in draft mode"
-  //       : "The survey is now public and can receive responses",
-  //   });
-  // };
-  // const getSurveyLink = (): string | null => {
-  //   if (!surveyId || !isPublished) return null;
-
-  //   const baseUrl = window.location.origin;
-  //   return `${baseUrl}/surveys/${surveyId}`;
-  // };
-
-  // const handleCopyLink = () => {
-  //   const link = getSurveyLink();
-  //   if (!link) return;
-
-  //   navigator.clipboard.writeText(link);
-  //   toast("Link copied", {
-  //     description: "Survey link copied to clipboard",
-  //   });
-  // };
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -293,40 +262,6 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
             ))}
           </TabList>
 
-          <div className="flex items-center gap-4">
-            {/* <input
-              type="text"
-              value={surveyTitle}
-              onChange={(e) => setSurveyTitle(e.target.value)}
-              className="text-xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary/20 rounded px-2 py-1"
-              placeholder="Survey Title"
-            /> */}
-
-            {/* Publish toggle */}
-            {/* <div className="flex items-center space-x-2">
-              <Switch
-                id="publish-status"
-                checked={isPublished}
-                onCheckedChange={togglePublishStatus}
-              />
-              <Label htmlFor="publish-status">
-                {isPublished ? "Published" : "Draft"}
-              </Label>
-            </div> */}
-
-            {/* Share link button */}
-            {/* {surveyId && isPublished && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyLink}
-                className="flex items-center gap-1"
-              >
-                <Link2 className="h-4 w-4" />
-                Copy Link
-              </Button>
-            )} */}
-          </div>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <Input
