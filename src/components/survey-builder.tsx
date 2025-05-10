@@ -16,7 +16,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import { Sheet, SheetContent } from "./ui/sheet";
 import { Separator } from "./ui/separator";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { QuestionEditor } from "./question-editor";
@@ -30,7 +30,6 @@ import { useSurveyForm } from "@/hooks/use-survey-form";
 import { Form } from "./ui/form";
 import { Input } from "./ui/input";
 import { QuestionItem } from "./question-item";
-import { useQuestions, useSurvey } from "@/hooks/use-store";
 import { QuestionTypeSelector } from "./question-type-selector";
 import { QuestionSuggestionChat } from "./question-suggestion-chat";
 import { useSurveyStore } from "@/store/survey-store";
@@ -52,11 +51,10 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
   const removeQuestion = useSurveyStore((state) => state.removeQuestion);
   const reorderQuestions = useSurveyStore((state) => state.reorderQuestions);
   const updateSurveyTitle = useSurveyStore((state) => state.updateSurveyTitle);
-  const isDirty = useSurveyStore((state) => state.isDirty);
   const markAsSaved = useSurveyStore((state) => state.markAsSaved);
 
   // Use React Hook Form
-  const { form, onSubmit } = useSurveyForm();
+  const { form } = useSurveyForm();
 
   const [surveyId, setSurveyId] = useState<string | null>(
     initialSurvey?.id || null

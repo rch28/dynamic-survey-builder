@@ -289,8 +289,9 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
       deleteDraft: (id) => {
         set(
           produce((state: SurveyState) => {
-            const { [id]: _, ...restDrafts } = state.drafts.drafts;
-            state.drafts.drafts = restDrafts;
+            const drafts = { ...state.drafts.drafts };
+            delete drafts[id];
+            state.drafts.drafts = drafts;
           })
         );
       },

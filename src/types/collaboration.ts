@@ -9,7 +9,7 @@ export interface Collaborator {
   surveyId: string;
   userId: string;
   role: CollaboratorRole;
-  createdAt?: string;
+  createdAt?: Record<string, unknown>;
   user?: {
     id: string;
     name: string;

@@ -33,7 +33,6 @@ export function SurveyDrafts() {
   const loadDraft = useSurveyStore((state) => state.loadDraft);
   const deleteDraft = useSurveyStore((state) => state.deleteDraft);
   const getDrafts = useSurveyStore((state) => state.getDrafts);
-  const currentSurvey = useSurveyStore((state) => state.survey);
 
   const [drafts, setDrafts] = useState<Survey[]>([]);
   const [isOpen, setIsOpen] = useState(false);
