@@ -2,9 +2,8 @@
 
 import { useForm } from "react-hook-form";
 import { useSurveyStore } from "@/store/survey-store";
-import { surveySchema, type Survey } from "@/types/survey";
+import { type Survey } from "@/types/survey";
 import { useEffect } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 export function useSurveyForm() {
   const survey = useSurveyStore((state) => state.survey);
