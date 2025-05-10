@@ -1,8 +1,14 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { produce } from "immer";
-import type { Survey, Question } from "@/types/survey";
+import type {
+  Survey,
+  Question,
+  SurveyMetadata,
+  Collaborator,
+} from "@/types/survey";
 import { QuestionType } from "@/types/survey";
+import type { CollaboratorRole } from "@/types/collaboration";
 
 function createNewQuestion(type: QuestionType): Question {
   const base = {
@@ -60,13 +66,18 @@ function createNewQuestion(type: QuestionType): Question {
   }
 }
 
-// Define the history state for undo/redo
+// Define a draft State
+interface DraftState {
+  draftsCollection: Record<string, Survey>;
+}
 
 // Define the survey store state
 interface SurveyState {
   survey: Survey;
   selectedQuestionId: string | null;
   isDirty: boolean;
+  drafts: DraftState;
+  collaborators: Collaborator[];
 }
 
 // Define the survey store actions
@@ -75,6 +86,7 @@ interface SurveyActions {
   setSurvey: (survey: Survey) => void;
   updateSurveyTitle: (title: string) => void;
   updateSurveyDescription: (description: string) => void;
+  updateSurveyMetadata: (metadata: Partial<SurveyMetadata>) => void;
 
   // Question actions
   addQuestion: (type: QuestionType) => void;
@@ -85,16 +97,39 @@ interface SurveyActions {
   // Selection actions
   selectQuestion: (id: string | null) => void;
 
+  // draft actions
+  saveDraft: () => void;
+  loadDraft: (id: string) => void;
+  deleteDraft: (id: string) => void;
+  getDrafts: () => Survey[];
+
+  // Collaborator Actions
+  setCollaborators: (collaborators: Collaborator[]) => void;
+  addCollaborator: (collaborator: Collaborator) => void;
+  updateCollaborator: (id: string, role: CollaboratorRole) => void;
+  removeCollaborator: (id: string) => void;
   // State management
   markAsSaved: () => void;
   resetState: () => void;
 }
-
+// Helper function to update timestamps
+const updateTimestamps = (state: SurveyState) => {
+  state.survey.updated_at = new Date().toISOString();
+  state.isDirty = true;
+};
 // Create the initial survey
-const createInitialSurvey = (): Survey => ({
+export const createInitialSurvey = (): Survey => ({
   title: "Untitled Survey",
   description: "",
   questions: [],
+  metadata: {
+    tags: [],
+    isPublic: false,
+    allowAnonymousResponses: true,
+  },
+  isDraft: true,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
 });
 
 // Create the initial state
@@ -102,12 +137,16 @@ const initialState: SurveyState = {
   survey: createInitialSurvey(),
   selectedQuestionId: null,
   isDirty: false,
+  drafts: {
+    draftsCollection: {},
+  },
+  collaborators: [],
 };
 
 // Create the store
 export const useSurveyStore = create<SurveyState & SurveyActions>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
       // Survey actions
@@ -123,7 +162,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
         set(
           produce((state: SurveyState) => {
             state.survey.title = title;
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -132,7 +171,16 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
         set(
           produce((state: SurveyState) => {
             state.survey.description = description;
-            state.isDirty = true;
+            updateTimestamps(state);
+          })
+        );
+      },
+      // update survey metadata
+      updateSurveyMetadata: (metadata) => {
+        set(
+          produce((state: SurveyState) => {
+            state.survey.metadata = { ...state.survey.metadata, ...metadata };
+            updateTimestamps(state);
           })
         );
       },
@@ -144,7 +192,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
           produce((state: SurveyState) => {
             state.survey.questions.push(newQuestion);
             state.selectedQuestionId = newQuestion.id;
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -157,7 +205,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             );
             if (index !== -1) {
               state.survey.questions[index] = question;
-              state.isDirty = true;
+              updateTimestamps(state);
             }
           })
         );
@@ -180,8 +228,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             if (state.selectedQuestionId === id) {
               state.selectedQuestionId = null;
             }
-
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -191,7 +238,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
           produce((state: SurveyState) => {
             const [removed] = state.survey.questions.splice(startIndex, 1);
             state.survey.questions.splice(endIndex, 0, removed);
-            state.isDirty = true;
+            updateTimestamps(state);
           })
         );
       },
@@ -199,6 +246,88 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
       // Selection actions
       selectQuestion: (id) => {
         set({ selectedQuestionId: id });
+      },
+      // Draft actions
+      saveDraft: () => {
+        set(
+          produce((state: SurveyState) => {
+            const currentSurvey = { ...state.survey };
+            const draftId = currentSurvey.id || crypto.randomUUID();
+
+            // update the survey with the draft id
+            currentSurvey.id = draftId;
+            currentSurvey.isDraft = true;
+            currentSurvey.lastSavedAt = new Date().toISOString();
+            currentSurvey.updated_at = new Date().toISOString();
+
+            // save the draft
+            state.drafts.draftsCollection[draftId] = currentSurvey;
+
+            // update the survey state
+            state.survey = currentSurvey;
+            state.isDirty = false;
+          })
+        );
+      },
+
+      // load draft
+      loadDraft: (id) => {
+        const { draftsCollection } = get().drafts;
+        const draft = draftsCollection[id];
+
+        if (draft) {
+          set({
+            survey: draft,
+            selectedQuestionId: null,
+            isDirty: false,
+          });
+        }
+      },
+
+      deleteDraft: (id) => {
+        set(
+          produce((state: SurveyState) => {
+            const drafts = { ...state.drafts.draftsCollection };
+            delete drafts[id];
+            state.drafts.draftsCollection = drafts;
+          })
+        );
+      },
+      getDrafts: () => {
+        const { draftsCollection } = get().drafts;
+        return Object.values(draftsCollection);
+      },
+
+      // Collaboration actions
+      setCollaborators: (collaborators) => {
+        set({ collaborators });
+      },
+
+      addCollaborator: (collaborator) => {
+        set(
+          produce((state) => {
+            state.collaborators.push(collaborator);
+          })
+        );
+      },
+      updateCollaborator: (id, role) => {
+        set(
+          produce((state: SurveyState) => {
+            const index = state.collaborators.findIndex((c) => c.id === id);
+            if (index !== -1) {
+              state.collaborators[index].role = role;
+            }
+          })
+        );
+      },
+      removeCollaborator: (id) => {
+        set(
+          produce((state: SurveyState) => {
+            state.collaborators = state.collaborators.filter(
+              (c) => c.id !== id
+            );
+          })
+        );
       },
 
       // State management

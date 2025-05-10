@@ -2,9 +2,8 @@
 
 import { useForm } from "react-hook-form";
 import { useSurveyStore } from "@/store/survey-store";
-import { surveySchema, type Survey } from "@/types/survey";
+import { type Survey } from "@/types/survey";
 import { useEffect } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 export function useSurveyForm() {
   const survey = useSurveyStore((state) => state.survey);
@@ -12,11 +11,11 @@ export function useSurveyForm() {
   const updateSurveyDescription = useSurveyStore(
     (state) => state.updateSurveyDescription
   );
+
   const isDirty = useSurveyStore((state) => state.isDirty);
   const markAsSaved = useSurveyStore((state) => state.markAsSaved);
   // Initialize the form with the current survey data
   const form = useForm<Survey>({
-    resolver: zodResolver(surveySchema),
     defaultValues: survey,
   });
 
