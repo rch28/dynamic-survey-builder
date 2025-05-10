@@ -259,6 +259,7 @@ export const useSurveyStore = create<SurveyState & SurveyActions>()(
             // update the survey with the draft id
             currentSurvey.id = draftId;
             currentSurvey.isDraft = true;
+            currentSurvey.lastSavedAt = new Date().toISOString();
             currentSurvey.updated_at = new Date().toISOString();
 
             // save the draft

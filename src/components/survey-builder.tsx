@@ -35,6 +35,7 @@ import { QuestionTypeSelector } from "./question-type-selector";
 import { QuestionSuggestionChat } from "./question-suggestion-chat";
 import { useSurveyStore } from "@/store/survey-store";
 import { SurveyMetadata } from "./survey-metadata";
+import { SurveyDrafts } from "./survey-drafts";
 
 interface SurveyBuilderProps {
   initialSurvey?: Survey | null;
@@ -80,21 +81,6 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
         updated_at: initialSurvey.updated_at || new Date().toISOString(),
       });
       setSurveyId(initialSurvey.id || null);
-    } else {
-      setSurvey({
-        id: "",
-        title: "Untitled Survey",
-        description: "",
-        questions: [],
-        metadata: {
-          tags: [],
-          isPublic: false,
-          allowAnonymousResponses: true,
-        },
-        isDraft: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
     }
   }, [initialSurvey, setSurvey]);
   const handleDragEnd = (event: DragEndEvent) => {
@@ -254,7 +240,7 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
             </div>
 
             {/* Survey Drafts */}
-            {/* <SurveyDrafts /> */}
+            <SurveyDrafts />
 
             {/* Collaboration button */}
             <Button
