@@ -16,7 +16,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
-import { Sheet, SheetContent } from "./ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 import { Separator } from "./ui/separator";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { QuestionEditor } from "./question-editor";
@@ -256,9 +256,11 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                   className="w-[400px] sm:w-[540px] p-0"
                 >
                   <div className="flex flex-col h-full">
-                    <div className="flex items-center justify-between p-4 border-b">
-                      <h3 className="font-semibold">AI Question Suggestions</h3>
-                    </div>
+                    <SheetTitle className="flex items-center justify-between p-4 border-b">
+                      <span className="font-semibold">
+                        AI Question Suggestions
+                      </span>
+                    </SheetTitle>
                     <div className="flex-1 overflow-hidden">
                       <QuestionSuggestionChat />
                     </div>
@@ -292,9 +294,9 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                   className="w-[400px] sm:w-[540px] overflow-y-auto"
                 >
                   <div className="flex flex-col h-full">
-                    <div className="flex items-center justify-between p-4 border-b">
-                      <h3 className="font-semibold">Collaboration</h3>
-                    </div>
+                    <SheetTitle className="flex items-center justify-between p-4 border-b">
+                      <span className="font-semibold">Collaboration</span>
+                    </SheetTitle>
                     <div className="flex-1 overflow-y-auto p-4">
                       <CollaboratorList />
                     </div>
