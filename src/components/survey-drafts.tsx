@@ -83,7 +83,7 @@ export function SurveyDrafts() {
               My Drafts
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:w-[600px]">
             <DialogHeader>
               <DialogTitle>Saved Drafts</DialogTitle>
               <DialogDescription>

@@ -35,6 +35,7 @@ import { QuestionSuggestionChat } from "./question-suggestion-chat";
 import { createInitialSurvey, useSurveyStore } from "@/store/survey-store";
 import { SurveyMetadata } from "./survey-metadata";
 import { SurveyDrafts } from "./survey-drafts";
+import { CollaboratorList } from "./collaboration/collaborator-list";
 
 interface SurveyBuilderProps {
   initialSurvey?: Survey | null;
@@ -52,7 +53,6 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
   const reorderQuestions = useSurveyStore((state) => state.reorderQuestions);
   const updateSurveyTitle = useSurveyStore((state) => state.updateSurveyTitle);
   const markAsSaved = useSurveyStore((state) => state.markAsSaved);
-
   // Use React Hook Form
   const { form } = useSurveyForm();
 
@@ -215,114 +215,123 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
     <div className="flex flex-col h-screen">
       {/* Header */}
       <header className="border-b">
-        <div className="p-8 flex items-center justify-between py-4">
-          <div>
-            <h1 className="text-2xl font-bold">Survey Builder</h1>
-            <p className="text-muted-foreground">
-              Create and manage your surveys
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={exportSurvey}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-            <div className="relative">
-              <Button variant="outline" size="sm">
-                <Upload className="mr-2 h-4 w-4" />
-                Import
-              </Button>
-              <input
-                type="file"
-                accept=".json"
-                onChange={importSurvey}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
+        <div className="p-8 space-y-6 py-4 ">
+          <div className="flex items-center justify-between">
+            <div className="">
+              <h1 className="text-2xl font-bold">Survey Builder</h1>
+              <p className="text-muted-foreground">
+                Create and manage your surveys
+              </p>
             </div>
-
-            {/* Survey Drafts */}
-            <SurveyDrafts />
-
-            {/* Collaboration button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsCollaborationOpen(true)}
-              disabled={!surveyId}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Collaborate
-            </Button>
-            <Sheet
-              open={isCollaborationOpen}
-              onOpenChange={setIsCollaborationOpen}
-            >
-              <SheetContent
-                side="right"
-                className="w-[400px] sm:w-[540px] overflow-y-auto"
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={exportSurvey}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <div className="relative">
+                <Button variant="outline" size="sm">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
+                </Button>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={importSurvey}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </div>
+              {/* AI suggestion button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsChatOpen(true)}
+                className="flex items-center"
               >
-                <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold">Collaboration</h3>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                AI Suggestions
+              </Button>
+              <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
+                <SheetContent
+                  side="right"
+                  className="w-[400px] sm:w-[540px] p-0"
+                >
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between p-4 border-b">
+                      <h3 className="font-semibold">AI Question Suggestions</h3>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <QuestionSuggestionChat />
+                    </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4">
-                    {/* <CollaboratorList questionId={surveyId || ""} /> */}
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-            {/* Settings button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsSettingsOpen(true)}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </Button>
-            {/* Settings sheet */}
-            <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-              <SheetContent
-                side="right"
-                className="w-[400px] sm:w-[540px] overflow-y-auto"
-              >
-                <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold">Survey Settings</h3>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <SurveyMetadata />
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
+                </SheetContent>
+              </Sheet>
+            </div>
+          </div>
+          <div className="flex justify-between w-full ">
+            <div></div>
+            <div className="flex items-center flex-wrap gap-2 ">
+              {/* Survey Drafts */}
+              <SurveyDrafts />
 
-            {/* AI suggestion button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsChatOpen(true)}
-              className="flex items-center"
-            >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              AI Suggestions
-            </Button>
-            <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-              <SheetContent side="right" className="w-[400px] sm:w-[540px] p-0">
-                <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold">AI Question Suggestions</h3>
+              {/* Collaboration button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCollaborationOpen(true)}
+                disabled={!surveyId}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Collaborate
+              </Button>
+              <Sheet
+                open={isCollaborationOpen}
+                onOpenChange={setIsCollaborationOpen}
+              >
+                <SheetContent
+                  side="right"
+                  className="w-[400px] sm:w-[540px] overflow-y-auto"
+                >
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between p-4 border-b">
+                      <h3 className="font-semibold">Collaboration</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4">
+                      <CollaboratorList />
+                    </div>
                   </div>
-                  <div className="flex-1 overflow-hidden">
-                    <QuestionSuggestionChat />
+                </SheetContent>
+              </Sheet>
+              {/* Settings button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSettingsOpen(true)}
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Button>
+              {/* Settings sheet */}
+              <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <SheetContent
+                  side="right"
+                  className="w-[400px] sm:w-[540px] overflow-y-auto"
+                >
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between p-4 border-b">
+                      <h3 className="font-semibold">Survey Settings</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4">
+                      <SurveyMetadata />
+                    </div>
                   </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-            <Button size="sm" onClick={saveSurvey} disabled={isSaving}>
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Save Survey"}
-            </Button>
+                </SheetContent>
+              </Sheet>
+
+              <Button size="sm" onClick={saveSurvey} disabled={isSaving}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? "Saving..." : "Save Survey"}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
