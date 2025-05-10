@@ -85,7 +85,7 @@ interface SurveyActions {
   setSurvey: (survey: Survey) => void;
   updateSurveyTitle: (title: string) => void;
   updateSurveyDescription: (description: string) => void;
-  updateSurveyMetadata: (metadata: SurveyMetadata) => void;
+  updateSurveyMetadata: (metadata: Partial<SurveyMetadata>) => void;
 
   // Question actions
   addQuestion: (type: QuestionType) => void;
