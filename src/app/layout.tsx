@@ -21,14 +21,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getServerSession();
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
-            <Navbar user={user} />
+            <Navbar />
             {children}
             <Toaster />
           </AuthProvider>

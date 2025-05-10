@@ -14,9 +14,9 @@ import { User } from "@supabase/supabase-js";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 
-export function Navbar({ user }: { user: User | null }) {
+export function Navbar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   if (pathname === "/login" || pathname === "/register") {
     return null;
