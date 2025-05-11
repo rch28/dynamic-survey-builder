@@ -19,6 +19,8 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import "./profile.css";
+import { CollaboratorList } from "@/components/collaboration/collaborator-list";
+import { ActivityHistory } from "@/components/profile/activity-history";
 
 const ProfilePage = () => {
   const { user, isLoading, logout } = useAuth();
@@ -235,6 +237,16 @@ const ProfilePage = () => {
                 >
                   Collaborations
                 </Tab>
+                <Tab
+                  value={"activity"}
+                  className={({ selected }) =>
+                    ` ${
+                      selected ? " bg-background text-foreground" : ""
+                    }  px-3 py-0.5 rounded-md text-sm font-medium outline-none focus-visible:ring-1 focus-visible:ring-primary/20`
+                  }
+                >
+                  Activity
+                </Tab>
               </TabList>
             </div>
 
@@ -242,8 +254,12 @@ const ProfilePage = () => {
               <TabPanel className={"mt-4 flex-1"}>
                 <UserSurveys />
               </TabPanel>
-              <TabPanel className={"mt-4"}> </TabPanel>
-              <TabPanel className={"mt-4"}> </TabPanel>
+              <TabPanel className={"mt-4 flex-1"}>
+                <CollaboratorList />
+              </TabPanel>
+              <TabPanel className={"mt-4 flex-1"}>
+                <ActivityHistory />
+              </TabPanel>
             </TabPanels>
           </TabGroup>
         </div>
