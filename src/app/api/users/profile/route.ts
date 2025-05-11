@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+
 import { supabaseAdmin } from "@/lib/supabase";
 import { getServerSession } from "@/lib/auth/getServerSession";
 
@@ -81,12 +81,6 @@ export async function PUT(request: Request) {
         { status: 500 }
       );
     }
-
-    // Update the user cookie
-    const updatedUserCookie = JSON.stringify({
-      ...user,
-      name: updatedUser.name,
-    });
 
     // Log the activity
     await supabaseAdmin.from("activity_logs").insert({

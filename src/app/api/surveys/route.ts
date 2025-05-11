@@ -60,9 +60,12 @@ export async function POST(request: Request) {
     const newSurvey = {
       id: uuidv4(),
       user_id: user.id,
+      title: surveyData.title,
+      questions: surveyData.questions,
+      description: surveyData.description || "",
+      metadata: surveyData.metadata || {},
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      ...surveyData,
     };
     const { data, error } = await supabaseAdmin
       .from("surveys")

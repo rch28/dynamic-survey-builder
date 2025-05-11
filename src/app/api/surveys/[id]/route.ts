@@ -92,6 +92,9 @@ export async function PUT(request: NextRequest) {
       .update({
         title: surveyData.title,
         questions: surveyData.questions,
+        description: surveyData.description || "",
+        metadata: surveyData.metadata || {},
+        updated_at: new Date().toISOString(),
       })
       .eq("id", surveyId)
       .eq("user_id", userId)
