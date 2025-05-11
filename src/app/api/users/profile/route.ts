@@ -75,48 +75,99 @@ export async function PUT(request: Request) {
         },
       }
     );
-    // Check if user exists in users table
-    const { data: existingUser } = await supabaseAdmin
+    if (authError) {
+      console.error("Auth update error:", authError);
+      return NextResponse.json(
+        { error: "Failed to update authentication profile" },
+        { status: 500 }
+      );
+    }
+    let userData;
+
+    // Check if user exists by EITHER id OR email
+    const { data: existingUserById } = await supabaseAdmin
       .from("users")
-      .select("id")
+      .select("id, email")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!existingUser) {
-      // Create user record if it doesn't exist
-      await supabaseAdmin.from("users").insert({
-        id: user.id,
-        name: name,
-        email: user.email || "",
-        avatar_url: avatarUrl || user.user_metadata?.avatar_url || "",
-      });
+    // If no user found by ID, check by email
+    if (!existingUserById && user.email) {
+      const { data: existingUserByEmail } = await supabaseAdmin
+        .from("users")
+        .select("id, email")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      if (existingUserByEmail) {
+        // User exists with this email but different ID
+        // Update the existing record to match the current auth user's ID
+        const { data: updatedUser, error: updateError } = await supabaseAdmin
+          .from("users")
+          .update({
+            id: user.id, // Update to current auth ID
+            name: name,
+            avatar_url: avatarUrl || user.user_metadata?.avatar_url || "",
+          })
+          .eq("email", user.email)
+          .select("id, name, email, avatar_url")
+          .single();
+
+        if (updateError) {
+          console.error("Database update error:", updateError);
+          return NextResponse.json(
+            { error: "Failed to update user profile" },
+            { status: 500 }
+          );
+        }
+
+        userData = updatedUser;
+      } else {
+        // No user exists with this ID or email, create a new one
+        const { data: newUser, error: insertError } = await supabaseAdmin
+          .from("users")
+          .insert({
+            id: user.id,
+            name: name,
+            email: user.email || "",
+            avatar_url: avatarUrl || user.user_metadata?.avatar_url || "",
+            updated_at: new Date().toISOString(),
+          })
+          .select("id, name, email, avatar_url")
+          .single();
+
+        if (insertError) {
+          console.error("Database insert error:", insertError);
+          return NextResponse.json(
+            { error: "Failed to create user profile" },
+            { status: 500 }
+          );
+        }
+
+        userData = newUser;
+      }
     } else {
-      // Update existing user
-      await supabaseAdmin
+      // User exists by ID, update it
+      const { data: updatedUser, error: updateError } = await supabaseAdmin
         .from("users")
         .update({
           name: name,
           avatar_url: avatarUrl || user.user_metadata?.avatar_url || "",
+          updated_at: new Date().toISOString(),
         })
-        .eq("id", user.id);
-    }
+        .eq("id", user.id)
+        .select("id, name, email, avatar_url")
+        .maybeSingle();
 
-    // 2. Update your custom users table
-    const updateData = { name };
+      if (updateError) {
+        console.error("Database update error:", updateError);
+        return NextResponse.json(
+          { error: "Failed to update user profile" },
+          { status: 500 }
+        );
+      }
 
-    const { data: updatedUser, error } = await supabaseAdmin
-      .from("users")
-      .update(updateData)
-      .eq("id", user.id)
-      .select("id, name, email, avatar_url")
-      .single();
-
-    if (error) {
-      console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Failed to update user profile" },
-        { status: 500 }
-      );
+      userData = updatedUser;
     }
 
     // Log the activity
@@ -130,7 +181,7 @@ export async function PUT(request: Request) {
       },
     });
 
-    return NextResponse.json({ user: updatedUser }, { status: 200 });
+    return NextResponse.json({ user: userData }, { status: 200 });
   } catch (error) {
     console.error("Update user profile error:", error);
     return NextResponse.json(
