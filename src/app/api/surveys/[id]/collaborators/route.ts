@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabase";
 import { CollaboratorRole } from "@/types/collaboration";
 import { getServerSession } from "@/lib/auth/getServerSession";
