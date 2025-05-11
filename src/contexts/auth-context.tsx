@@ -33,6 +33,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
         const {
           data: { user },
         } = await supabase.auth.getUser();
+
         if (user) {
           setUser({
             id: user.id,

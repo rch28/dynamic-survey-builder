@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import "./profile.css";
 import { CollaboratorList } from "@/components/collaboration/collaborator-list";
 import { ActivityHistory } from "@/components/profile/activity-history";
+import { createClient } from "@/utils/supabase/client";
 
 const ProfilePage = () => {
   const { user, isLoading, logout } = useAuth();
@@ -29,7 +30,6 @@ const ProfilePage = () => {
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/login");
@@ -41,12 +41,15 @@ const ProfilePage = () => {
   }, [user, isLoading, router]);
   const fetchUserProfile = async () => {
     try {
-      const response = await fetch("/api/users/profile");
-      if (response.ok) {
-        const data = await response.json();
-        setName(data.user.name || "");
-        setEmail(data.user.email);
-        setAvatarUrl(data.user.avatarUrl || "");
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        setName(user.user_metadata.name || "");
+        setEmail(user.email || "");
+        setAvatarUrl(user.user_metadata.avatar_url || "");
       }
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
@@ -63,7 +66,7 @@ const ProfilePage = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, avatarUrl: avatarUrl }),
       });
 
       if (response.ok) {
@@ -129,7 +132,6 @@ const ProfilePage = () => {
       </div>
     );
   }
-
   return (
     <div className="p-8">
       <div className="profile-grid gap-8">
@@ -142,20 +144,20 @@ const ProfilePage = () => {
             <CardContent className="space-y-6">
               <div className="flex flex-col items-center space-y-4">
                 <Avatar className="h-24 w-24">
-                  {avatarUrl ? (
-                    <AvatarImage
-                      src={avatarUrl || "/placeholder.svg"}
-                      alt={name}
-                    />
-                  ) : (
-                    <AvatarFallback className="text-2xl">
-                      {name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()}
-                    </AvatarFallback>
-                  )}
+                  <AvatarImage
+                    src={avatarUrl || "/placeholder.svg"}
+                    alt={name}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="text-xl p-4">
+                    {name && name.trim()
+                      ? name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                      : "?"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="relative">
                   <Button variant="outline" size="sm" className="relative">

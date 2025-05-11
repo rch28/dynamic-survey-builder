@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const filePath = `avatars/${fileName}`;
 
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from("user-avatars")
+      .from("avatars")
       .upload(filePath, file, {
         cacheControl: "3600",
         upsert: true,
@@ -40,25 +40,50 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get the public URL
+    // Get public URL
     const { data: urlData } = supabaseAdmin.storage
-      .from("user-avatars")
-      .getPublicUrl(filePath);
+      .from("avatars")
+      .getPublicUrl(fileName);
 
     const avatarUrl = urlData.publicUrl;
 
-    // Update the user's avatar_url in the database
-    const { error: updateError } = await supabaseAdmin
-      .from("users")
-      .update({ avatar_url: avatarUrl })
-      .eq("id", user.id);
-
-    if (updateError) {
-      console.error("Database error:", updateError);
+    // Update auth user metadata
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+      user.id,
+      {
+        user_metadata: {
+          avatar_url: avatarUrl,
+          name: user.user_metadata?.name || "",
+        },
+      }
+    );
+    if (authError) {
+      console.error("Auth error:", authError);
       return NextResponse.json(
-        { error: "Failed to update avatar URL" },
+        { error: "Failed to update user metadata" },
         { status: 500 }
       );
+    }
+    // Check if user exists in users table
+    const { data: existingUser } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!existingUser) {
+      // Create user record if it doesn't exist
+      await supabaseAdmin.from("users").insert({
+        id: user.id,
+        name: user.user_metadata?.name || "",
+        email: user.email || "",
+        avatar_url: avatarUrl,
+      });
+    } else {
+      // Update existing user
+      await supabaseAdmin
+        .from("users")
+        .update({ avatar_url: avatarUrl })
+        .eq("id", user.id);
     }
 
     // Log the activity
@@ -67,6 +92,7 @@ export async function POST(request: Request) {
       action: "update_avatar",
       resource_type: "user",
       resource_id: user.id,
+      details: { updated_fields: ["avatar_url"] },
     });
 
     return NextResponse.json({ avatarUrl }, { status: 200 });
