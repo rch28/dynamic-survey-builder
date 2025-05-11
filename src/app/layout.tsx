@@ -6,7 +6,6 @@ import { AuthProvider } from "@/contexts/auth-context";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { Navbar } from "@/components/navbar";
-import { getServerSession } from "@/lib/auth/getServerSession";
 
 const inter = Inter({ subsets: ["latin"] });
 

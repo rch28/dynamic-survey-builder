@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { supabaseAdmin } from "@/lib/supabase";
-import { createClient } from "@/utils/supabase/server";
+
+import { getServerSession } from "@/lib/auth/getServerSession";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    //  check if user already exists
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getServerSession();
 
     if (!user) {
       return NextResponse.json(
@@ -44,12 +40,7 @@ export async function GET() {
 // POST /api/surveys
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-
-    //  check if user already exists
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getServerSession();
 
     if (!user) {
       return NextResponse.json(

@@ -1,55 +1,42 @@
 "use client";
-import React, { useState } from "react";
+
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "./ui/button";
 
-const DatabaseInitializer = () => {
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+export function DatabaseInitializer() {
+  const [initialized, setInitialized] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const initializeDatabase = async () => {
-    try {
-      setIsInitializing(true);
-      const response = await fetch("/api/setup-db");
+  useEffect(() => {
+    const initializeDatabase = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/init-supabase");
 
-      if (response.ok) {
-        setIsInitialized(true);
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to initialize database");
+        }
+
+        setInitialized(true);
         toast.success("Database initialized", {
-          description: "The database tables have been created successfully.",
+          description: "The database has been successfully set up.",
         });
-      } else {
-        const data = await response.json();
-        toast.error("Initialization failed", {
-          description: data.error || "Failed to initialize database",
+      } catch (err) {
+        console.error("Database initialization error:", err);
+        setError(err instanceof Error ? err.message : "Unknown error");
+        toast.error("Database initialization failed", {
+          description: err instanceof Error ? err.message : "Unknown error",
         });
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Database initialization error:", error);
-      toast.error("Initialization failed", {
-        description: "An unexpected error occurred",
-      });
-    } finally {
-      setIsInitializing(false);
-    }
-  };
-  return (
-    <div className="p-4 border rounded-md bg-muted/20">
-      <h2 className="text-lg font-medium mb-2">Database Setup</h2>
-      <p className="text-sm text-muted-foreground mb-4">
-        Initialize the database tables required for the survey builder.
-      </p>
-      <Button
-        onClick={initializeDatabase}
-        disabled={isInitializing || isInitialized}
-      >
-        {isInitializing
-          ? "Initializing..."
-          : isInitialized
-          ? "Initialized"
-          : "Initialize Database"}
-      </Button>
-    </div>
-  );
-};
+    };
 
-export default DatabaseInitializer;
+    initializeDatabase();
+  }, []);
+
+  // This component doesn't render anything visible
+  return null;
+}
