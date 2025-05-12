@@ -244,7 +244,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
     // Check if user is the owner (only owners can delete surveys)
-    const { data: ownedSurvey, error: ownedError } = await supabaseAdmin
+    const { data: ownedSurvey } = await supabaseAdmin
       .from("surveys")
       .select("id")
       .eq("id", surveyId)
