@@ -38,6 +38,7 @@ export async function signup(formData: FormData) {
       // emailRedirectTo: `${env.SITE_URL}/verify/callback`,
     },
   });
+  console.log("error", error, authData);
 
   if (error) {
     // redirect("/error");
@@ -50,16 +51,19 @@ export async function signup(formData: FormData) {
         return { error: { field: "form", message: error.message } };
       }
     }
-  }
-
-  // Now insert into the users table
-  if (authData.user) {
-    const { error: userError } = await supabase.from("users").insert({
-      id: authData.user.id,
-      email: data.email,
-      name: data.name,
-      avatar_url: "",
-    });
+  } else if (authData.user) {
+    const { error: userError } = await supabase.from("users").upsert(
+      {
+        id: authData.user.id,
+        email: data.email,
+        name: data.name,
+        avatar_url: "",
+      },
+      {
+        onConflict: "id",
+        ignoreDuplicates: false,
+      }
+    );
     if (userError) {
       console.error("Error creating user record:", userError);
       return {

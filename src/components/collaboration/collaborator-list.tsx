@@ -22,6 +22,7 @@ import { useSurveyStore } from "@/store/survey-store";
 import { CollaboratorRole } from "@/types/collaboration";
 import { AddCollaboratorDialog } from "@/components/collaboration/add-collaborator-dialog";
 import { toast } from "sonner";
+import LineLoader from "../line-loadet";
 
 export function CollaboratorList() {
   const survey = useSurveyStore((state) => state.survey);
@@ -158,7 +159,11 @@ export function CollaboratorList() {
   };
 
   if (isLoading) {
-    return <div className="text-center py-4">Loading collaborators...</div>;
+    return (
+      <div className="text-center py-4">
+        <LineLoader />
+      </div>
+    );
   }
 
   return (
