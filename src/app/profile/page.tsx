@@ -22,9 +22,12 @@ import "./profile.css";
 import { CollaboratorList } from "@/components/collaboration/collaborator-list";
 import { ActivityHistory } from "@/components/profile/activity-history";
 import { createClient } from "@/utils/supabase/client";
+import { useSurveyStore } from "@/store/survey-store";
 
 const ProfilePage = () => {
   const { user, isLoading, logout } = useAuth();
+  const resetState = useSurveyStore((state) => state.resetState);
+
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -123,6 +126,7 @@ const ProfilePage = () => {
   const handleLogout = async () => {
     await logout();
     router.push("/login");
+    resetState();
   };
 
   if (isLoading) {

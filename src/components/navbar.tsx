@@ -10,17 +10,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserIcon } from "lucide-react";
 import { ThemeSelector } from "@/components/theme-selector";
-import { User } from "@supabase/supabase-js";
+
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { useSurveyStore } from "@/store/survey-store";
 
 export function Navbar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
+  const resetState = useSurveyStore((state) => state.resetState);
 
   if (pathname === "/login" || pathname === "/register") {
     return null;
   }
+  const handleLogout = () => {
+    logout();
+    resetState();
+  };
   return (
     <header className="border-b">
       <div className="p-8 flex h-16 items-center justify-between w-full">
@@ -82,7 +88,7 @@ export function Navbar() {
                   <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => logout()}>
+                <DropdownMenuItem onClick={handleLogout}>
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
