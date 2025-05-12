@@ -74,9 +74,9 @@ export function Navbar() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {/* <div className="px-2 py-1.5 text-sm font-medium">
+                <div className="px-2 py-1.5 text-sm font-medium">
                   {user.name}
-                </div> */}
+                </div>
                 <div className="px-2 py-1.5 text-xs text-muted-foreground">
                   {user.email}
                 </div>
@@ -87,6 +87,12 @@ export function Navbar() {
                 <DropdownMenuItem asChild>
                   <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
+                {user.role === "admin" && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin">Admin</Link>
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   Logout

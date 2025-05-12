@@ -33,13 +33,14 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-
         if (user) {
           setUser({
             id: user.id,
-            name: user.user_metadata.full_name,
+            name: user.user_metadata.name,
             email: user.email as string,
-          });
+            role: user.user_metadata.role || "user",
+            avatar_url: user.user_metadata.avatar_url || "",
+          } as User);
         } else {
           setUser(null);
         }

@@ -15,12 +15,12 @@ import { UserManagement } from "@/components/admin/user-management";
 import { SurveyAnalytics } from "@/components/admin/survey-analytics";
 import { VisitorStats } from "@/components/admin/visitor-stats";
 import { toast } from "sonner";
+import { DotsLoader } from "@/components/dots-loader";
 
 export default function AdminPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
-
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
@@ -38,7 +38,7 @@ export default function AdminPage() {
       if (response.ok) {
         setIsAdmin(true);
       } else {
-        toast("Access Denied", {
+        toast.error("Access Denied", {
           description: "You don't have permission to access the admin area",
         });
         router.push("/dashboard");
@@ -52,7 +52,7 @@ export default function AdminPage() {
   if (isLoading || !isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p>Loading...</p>
+        <DotsLoader />
       </div>
     );
   }
