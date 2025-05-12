@@ -84,7 +84,7 @@ export async function GET(request: Request) {
 
     // Get responses over time
     const { data: responseData, error: responseError } = await supabaseAdmin
-      .from("survey_responses")
+      .from("responses")
       .select("created_at")
       .gte("created_at", timeRange)
       .lte("created_at", endDate || now.toISOString())
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
       await supabaseAdmin.rpc("execute_sql", {
         sql: `
             SELECT survey_id, COUNT(*) as count
-            FROM survey_responses
+            FROM responses
             WHERE created_at >= '${timeRange}'
             AND created_at <= '${endDate || now.toISOString()}'
             GROUP BY survey_id
@@ -147,7 +147,7 @@ export async function GET(request: Request) {
     // Get total counts
     const [surveyCount, responseCount, userCount] = await Promise.all([
       supabaseAdmin.from("surveys").select("id", { count: "exact" }),
-      supabaseAdmin.from("survey_responses").select("id", { count: "exact" }),
+      supabaseAdmin.from("responses").select("id", { count: "exact" }),
       supabaseAdmin.from("users").select("id", { count: "exact" }),
     ]);
 

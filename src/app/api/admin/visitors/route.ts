@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 
     // Get visitor stats
     const { data: visitorData, error: visitorError } = await supabaseAdmin
-      .from("visitor_stats")
+      .from("visitors")
       .select("*")
       .gte("visit_date", timeRange)
       .lte("visit_date", endDate || now.toISOString())
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
       {
         sql: `
             SELECT device_type, COUNT(*) as count
-            FROM visitor_stats
+            FROM visitors
             WHERE visit_date >= $1 AND visit_date <= $2
             GROUP BY device_type
             ORDER BY count DESC
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
       await supabaseAdmin.rpc("execute_sql", {
         sql: `
             SELECT referrer, COUNT(*) as count
-            FROM visitor_stats
+            FROM visitors
             WHERE visit_date >= $1 AND visit_date <= $2
             AND referrer IS NOT NULL
             GROUP BY referrer
