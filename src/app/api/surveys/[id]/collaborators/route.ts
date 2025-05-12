@@ -136,13 +136,14 @@ export async function POST(
     }
 
     // Find the user by email
-    const { data: user, error: userError } = await supabaseAdmin
+    let userData;
+    const { data: existingUser, error: userError } = await supabaseAdmin
       .from("users")
       .select("id, name, email, avatar_url")
       .eq("email", email)
       .single();
 
-    if (userError || !user) {
+    if (userError || !existingUser) {
       // User doesn't exist, create a new user
       const { data: newUser, error: createUserError } = await supabaseAdmin
         .from("users")
@@ -161,8 +162,10 @@ export async function POST(
         );
       }
 
-      // Use the newly created user
-      const user = newUser;
+      userData = newUser;
+    } else {
+      // Use the existing user
+      userData = existingUser;
     }
 
     // Check if the user is already a collaborator
@@ -171,7 +174,7 @@ export async function POST(
         .from("collaborators")
         .select("id")
         .eq("survey_id", params.id)
-        .eq("user_id", user.id)
+        .eq("user_id", userData.id)
         .single();
 
     if (existingCollaborator) {
@@ -186,7 +189,7 @@ export async function POST(
       .from("collaborators")
       .insert({
         survey_id: params.id,
-        user_id: user.id,
+        user_id: userData.id,
         role: role || CollaboratorRole.VIEWER,
       })
       .select("id, survey_id, user_id, role, created_at")
@@ -206,7 +209,11 @@ export async function POST(
       action: "add_collaborator",
       resource_type: "survey",
       resource_id: params.id,
-      details: { collaborator_id: user.id, collaborator_email: email, role },
+      details: {
+        collaborator_id: userData.id,
+        collaborator_email: email,
+        role,
+      },
     });
 
     // Return the collaborator with user info
@@ -217,10 +224,10 @@ export async function POST(
       role: collaborator.role,
       createdAt: collaborator.created_at,
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        avatarUrl: user.avatar_url,
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        avatarUrl: userData.avatar_url,
       },
     };
 

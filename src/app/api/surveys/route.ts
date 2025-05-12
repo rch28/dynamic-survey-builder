@@ -14,21 +14,56 @@ export async function GET() {
         { status: 401 }
       );
     }
-    const { data: surveys, error } = await supabaseAdmin
+    // Fetch all surveys where the user is the owner
+    const { data: ownedSurveys, error: ownedError } = await supabaseAdmin
       .from("surveys")
       .select("*")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false });
 
-    if (error) {
-      console.error("Database error:", error);
+    if (ownedError) {
+      console.error("Error fetching owned surveys:", ownedError);
+      return NextResponse.json(
+        { error: "Failed to fetch surveys" },
+        { status: 500 }
+      );
+    }
+    // Fetch all surveys where the user is a collaborator
+    const { data: collaborations, error: collabError } = await supabaseAdmin
+      .from("collaborators")
+      .select(
+        `role,
+    survey_id,
+    survey:surveys!survey_id (*)`
+      )
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (collabError) {
+      console.error("Error fetching collaborations:", collabError);
       return NextResponse.json(
         { error: "Failed to fetch surveys" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ surveys: surveys || [] }, { status: 200 });
+    // Format collaboration data
+    const collaborativeSurveys = collaborations.map((collab) => {
+      const survey = collab.survey;
+      return {
+        ...survey,
+        collaborative: true,
+        role: collab.role,
+      };
+    });
+
+    // Return both owned and collaborative surveys
+    const allSurveys = [
+      ...ownedSurveys.map((survey) => ({ ...survey, owned: true })),
+      ...collaborativeSurveys,
+    ];
+
+    return NextResponse.json({ surveys: allSurveys || [] }, { status: 200 });
   } catch (error) {
     console.error("Error in GET /api/surveys:", error);
     return NextResponse.json(

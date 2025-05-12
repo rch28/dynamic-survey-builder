@@ -42,20 +42,72 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
-    // Fetch survey from Supabase
-    const { data: survey, error } = await supabaseAdmin
+    // First, check if user is the owner
+    const { data: ownedSurvey, error: ownedError } = await supabaseAdmin
       .from("surveys")
       .select("*")
       .eq("id", surveyId)
       .eq("user_id", userId)
       .single();
 
-    if (error) {
-      console.error("Database error:", error);
-      return NextResponse.json({ error: "Survey not found" }, { status: 404 });
+    if (ownedSurvey && !ownedError) {
+      // Get user information in a separate query
+      const { data: userData } = await supabaseAdmin
+        .from("users")
+        .select("name, email, avatar_url")
+        .eq("id", ownedSurvey.user_id)
+        .single();
+
+      // User is the owner, return with ownership flag and user data
+      return NextResponse.json(
+        {
+          survey: {
+            ...ownedSurvey,
+            isOwner: true,
+            user: userData || null,
+          },
+        },
+        { status: 200 }
+      );
+    }
+    // If not the owner, check if user is a collaborator
+    const { data: collaboration, error: collabError } = await supabaseAdmin
+      .from("collaborators")
+      .select(" role, survey_id")
+      .eq("survey_id", surveyId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (collaboration && !collabError) {
+      // Get the survey
+      const { data: surveyData } = await supabaseAdmin
+        .from("surveys")
+        .select("*")
+        .eq("id", collaboration.survey_id)
+        .single();
+
+      // Get owner information
+      const { data: ownerData } = await supabaseAdmin
+        .from("users")
+        .select("name, email, avatar_url")
+        .eq("id", surveyData.user_id)
+        .single();
+
+      // User is a collaborator, return with role
+      return NextResponse.json(
+        {
+          survey: {
+            ...surveyData,
+            isOwner: false,
+            role: collaboration.role,
+            user: ownerData || null,
+          },
+        },
+        { status: 200 }
+      );
     }
 
-    return NextResponse.json({ survey }, { status: 200 });
+    return NextResponse.json({ error: "Survey not found" }, { status: 404 });
   } catch (error) {
     console.error("Error in GET /api/surveys:", error);
     return NextResponse.json(
