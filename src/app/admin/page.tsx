@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
   CardDescription,
@@ -16,6 +15,7 @@ import { SurveyAnalytics } from "@/components/admin/survey-analytics";
 import { VisitorStats } from "@/components/admin/visitor-stats";
 import { toast } from "sonner";
 import { DotsLoader } from "@/components/dots-loader";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 
 export default function AdminPage() {
   const { user, isLoading } = useAuth();
@@ -68,30 +68,73 @@ export default function AdminPage() {
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="analytics" className="space-y-4">
-        <TabsList className="grid grid-cols-4 w-full">
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="logs">Activity Logs</TabsTrigger>
-          <TabsTrigger value="visitors">Visitors</TabsTrigger>
-        </TabsList>
+      <TabGroup
+        defaultValue={"analytics"}
+        className={"flex flex-col gap-2 flex-1 p-8 py-4"}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <TabList className="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]">
+            <Tab
+              value="analytics"
+              className={({ selected }) =>
+                ` ${
+                  selected ? " bg-background text-foreground" : ""
+                }  px-3 py-0.5 rounded-md text-sm font-medium outline-none focus-visible:ring-1 focus-visible:ring-primary/20`
+              }
+            >
+              Analytics
+            </Tab>
+            <Tab
+              value="users"
+              className={({ selected }) =>
+                ` ${
+                  selected ? " bg-background text-foreground" : ""
+                }  px-3 py-0.5 rounded-md text-sm font-medium outline-none focus-visible:ring-1 focus-visible:ring-primary/20`
+              }
+            >
+              Users
+            </Tab>
+            <Tab
+              value="logs"
+              className={({ selected }) =>
+                ` ${
+                  selected ? " bg-background text-foreground" : ""
+                }  px-3 py-0.5 rounded-md text-sm font-medium outline-none focus-visible:ring-1 focus-visible:ring-primary/20`
+              }
+            >
+              Activity Logs
+            </Tab>
+            <Tab
+              value="visitors"
+              className={({ selected }) =>
+                ` ${
+                  selected ? " bg-background text-foreground" : ""
+                }  px-3 py-0.5 rounded-md text-sm font-medium outline-none focus-visible:ring-1 focus-visible:ring-primary/20`
+              }
+            >
+              Visitors
+            </Tab>
+          </TabList>
+        </div>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <SurveyAnalytics />
-        </TabsContent>
-
-        <TabsContent value="users" className="space-y-4">
-          <UserManagement />
-        </TabsContent>
-
-        <TabsContent value="logs" className="space-y-4">
-          <AdminLogs />
-        </TabsContent>
-
-        <TabsContent value="visitors" className="space-y-4">
-          <VisitorStats />
-        </TabsContent>
-      </Tabs>
+        <TabPanels>
+          <TabPanel className={"flex-1 "}>
+            <SurveyAnalytics />
+          </TabPanel>
+          <TabPanel className={"flex-1"}>
+            {" "}
+            <UserManagement />
+          </TabPanel>
+          <TabPanel className={"flex-1"}>
+            {" "}
+            <AdminLogs />
+          </TabPanel>
+          <TabPanel className={"flex-1"}>
+            {" "}
+            <VisitorStats />
+          </TabPanel>
+        </TabPanels>
+      </TabGroup>
     </div>
   );
 }

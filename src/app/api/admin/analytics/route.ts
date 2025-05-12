@@ -21,10 +21,6 @@ interface PopularSurveyWithDetails extends SurveyDetail {
   responses: number;
 }
 
-interface DailyData {
-  date: string;
-  count: number;
-}
 export async function GET(request: Request) {
   try {
     const user = await getServerSession();
@@ -158,9 +154,15 @@ export async function GET(request: Request) {
     // Process survey creation data by day for charting
     const surveyCreationByDay = processDataByDay(surveyCreationData || []);
 
+    const { data: surveyCategories } = await supabaseAdmin
+      .from("surveys")
+      .select("metadata")
+      .gte("created_at", timeRange)
+      .lte("created_at", endDate || now.toISOString());
+
+    const categoryData = processCategoryData(surveyCategories || []);
     // Process response data by day for charting
     const responsesByDay = processDataByDay(responseData || []);
-
     return NextResponse.json({
       surveyCreation: surveyCreationByDay,
       responses: responsesByDay,
@@ -170,6 +172,7 @@ export async function GET(request: Request) {
         responses: responseCount.count || 0,
         users: userCount.count || 0,
       },
+      surveysByCategory: categoryData,
     });
   } catch (error) {
     console.error("Error in GET /api/admin/analytics:", error);
@@ -202,4 +205,26 @@ function processDataByDay(data: any[]) {
       date: day,
       count: groupedByDay[day],
     }));
+}
+
+function processCategoryData(surveys: any[]) {
+  const categories: Record<string, number> = {};
+
+  surveys.forEach((survey) => {
+    let category = survey.metadata?.category || "Uncategorized";
+    if (typeof category !== "string" || !category.trim()) {
+      category = "Uncategorized";
+    }
+
+    if (!categories[category]) {
+      categories[category] = 0;
+    }
+
+    categories[category]++;
+  });
+
+  return Object.keys(categories).map((category) => ({
+    category,
+    count: categories[category],
+  }));
 }
