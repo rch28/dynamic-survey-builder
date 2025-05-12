@@ -16,6 +16,7 @@ import LineLoader from "./line-loadet";
 import { DotsLoader } from "./dots-loader";
 
 import type { Survey } from "@/types";
+import { toast } from "sonner";
 const SurveyList = () => {
   const [surveys, setSurveys] = React.useState<Survey[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -53,7 +54,13 @@ const SurveyList = () => {
       setSurveys((prevSurveys) =>
         prevSurveys.filter((survey) => survey.id !== id)
       );
+      toast.success("Survey Deleted", {
+        description: "Survey has been deleted",
+      });
     } else {
+      toast.error("Error", {
+        description: "Failed to delete survey",
+      });
       console.error("Error deleting survey");
     }
   };

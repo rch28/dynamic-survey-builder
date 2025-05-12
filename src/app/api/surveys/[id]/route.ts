@@ -107,7 +107,21 @@ export async function PUT(request: NextRequest) {
         { status: 500 }
       );
     }
-
+    // Actigity log
+    await supabaseAdmin.from("activity_logs").insert({
+      user_id: userId,
+      action: "update_survey",
+      resource_type: "survey",
+      resource_id: surveyData.id,
+      details: {
+        updated_field: {
+          title: surveyData.title,
+          questions: surveyData.questions,
+          description: surveyData.description,
+          metadata: surveyData.metadata,
+        },
+      },
+    });
     return NextResponse.json({ survey: updatedSurvey }, { status: 200 });
   } catch (error) {
     console.error("Error in PUT /api/surveys:", error);
@@ -145,6 +159,13 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       );
     }
+    // Actigity log
+    await supabaseAdmin.from("activity_logs").insert({
+      user_id: userId,
+      action: "delete_survey",
+      resource_type: "survey",
+      resource_id: surveyId,
+    });
 
     return NextResponse.json(
       { message: "Survey deleted successfully" },

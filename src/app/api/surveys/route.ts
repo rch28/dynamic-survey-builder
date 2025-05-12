@@ -78,6 +78,22 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // ACTIVITY LOG
+    await supabaseAdmin.from("activity_logs").insert({
+      user_id: user.id,
+      action: "create_survey",
+      resource_type: "survey",
+      resource_id: data.id,
+      details: {
+        updated_field: {
+          title: surveyData.title,
+          questions: surveyData.questions,
+          description: surveyData.description,
+          metadata: surveyData.metadata,
+        },
+      },
+    });
     return NextResponse.json({ survey: data }, { status: 201 });
   } catch (error) {
     console.error("Error in POST /api/surveys:", error);
