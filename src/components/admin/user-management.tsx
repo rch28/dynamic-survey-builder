@@ -57,6 +57,7 @@ export function UserManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchUsers();
   }, [page]);

@@ -22,6 +22,23 @@ export default function AdminPage() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const response = await fetch("/api/admin/check");
+
+        if (response.ok) {
+          setIsAdmin(true);
+        } else {
+          toast.error("Access Denied", {
+            description: "You don't have permission to access the admin area",
+          });
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        console.error("Failed to check admin status:", error);
+        router.push("/dashboard");
+      }
+    };
     if (!isLoading) {
       if (!user) {
         router.push("/login");
@@ -30,24 +47,6 @@ export default function AdminPage() {
       }
     }
   }, [user, isLoading, router]);
-
-  const checkAdminStatus = async () => {
-    try {
-      const response = await fetch("/api/admin/check");
-
-      if (response.ok) {
-        setIsAdmin(true);
-      } else {
-        toast.error("Access Denied", {
-          description: "You don't have permission to access the admin area",
-        });
-        router.push("/dashboard");
-      }
-    } catch (error) {
-      console.error("Failed to check admin status:", error);
-      router.push("/dashboard");
-    }
-  };
 
   if (isLoading || !isAdmin) {
     return (

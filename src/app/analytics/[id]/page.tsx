@@ -69,53 +69,52 @@ export default function SurveyAnalyticsPage() {
   });
 
   useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setIsLoadingAnalytics(true);
+        const queryParams = new URLSearchParams();
+
+        if (dateRange?.from) {
+          queryParams.append("from", format(dateRange.from, "yyyy-MM-dd"));
+        }
+
+        if (dateRange?.to) {
+          queryParams.append("to", format(dateRange.to, "yyyy-MM-dd"));
+        }
+
+        const response = await fetch(
+          `/api/surveys/${id}/analytics?${queryParams}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setAnalytics(data);
+        } else if (response.status === 404) {
+          toast("Survey not found", {
+            description:
+              "The survey you're looking for doesn't exist or you don't have access to it",
+          });
+          router.push("/dashboard");
+        } else {
+          toast.error("Error", {
+            description: "Failed to fetch analytics data",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch analytics:", error);
+        toast.error("Error", {
+          description: "Failed to fetch analytics data",
+        });
+      } finally {
+        setIsLoadingAnalytics(false);
+      }
+    };
     if (!isLoading && !user) {
       router.push("/login");
     } else if (user) {
       fetchAnalytics();
     }
   }, [user, isLoading, router, id, dateRange]);
-
-  const fetchAnalytics = async () => {
-    try {
-      setIsLoadingAnalytics(true);
-      const queryParams = new URLSearchParams();
-
-      if (dateRange?.from) {
-        queryParams.append("from", format(dateRange.from, "yyyy-MM-dd"));
-      }
-
-      if (dateRange?.to) {
-        queryParams.append("to", format(dateRange.to, "yyyy-MM-dd"));
-      }
-
-      const response = await fetch(
-        `/api/surveys/${id}/analytics?${queryParams}`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data);
-      } else if (response.status === 404) {
-        toast("Survey not found", {
-          description:
-            "The survey you're looking for doesn't exist or you don't have access to it",
-        });
-        router.push("/dashboard");
-      } else {
-        toast.error("Error", {
-          description: "Failed to fetch analytics data",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch analytics:", error);
-      toast.error("Error", {
-        description: "Failed to fetch analytics data",
-      });
-    } finally {
-      setIsLoadingAnalytics(false);
-    }
-  };
 
   const COLORS = [
     "#0088FE",
