@@ -24,9 +24,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  target: process.env.NEXT_USE_NETLIFY_EDGE
-    ? "experimental-serverless-trace"
-    : undefined,
 };
 
 export default nextConfig;
