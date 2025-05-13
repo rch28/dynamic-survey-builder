@@ -170,15 +170,17 @@ export function UserManagement() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row md:items-center justify-between gap-4">
           <div>
             <CardTitle>User Management</CardTitle>
             <CardDescription>Manage users and their roles</CardDescription>
           </div>
-          <Button onClick={() => setIsAddUserOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add User
-          </Button>
+          <div>
+            <Button onClick={() => setIsAddUserOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
