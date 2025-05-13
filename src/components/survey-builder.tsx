@@ -168,7 +168,9 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
       setIsSaving(true);
       const surveyData = {
         title: survey.title,
+        description: survey.description,
         questions: survey.questions,
+        metadata: survey.metadata,
       };
 
       const url = surveyId ? `/api/surveys/${surveyId}` : "/api/surveys";
