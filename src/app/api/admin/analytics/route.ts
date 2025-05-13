@@ -96,16 +96,9 @@ export async function GET(request: Request) {
 
     // Get most popular surveys
     const { data: popularSurveys, error: popularSurveysError } =
-      await supabaseAdmin.rpc("execute_sql", {
-        sql: `
-            SELECT survey_id, COUNT(*) as count
-            FROM responses
-            WHERE created_at >= '${timeRange}'
-            AND created_at <= '${endDate || now.toISOString()}'
-            GROUP BY survey_id
-            ORDER BY count DESC
-            LIMIT 5
-          `,
+      await supabaseAdmin.rpc("get_popular_surveys", {
+        start_time: timeRange,
+        end_time: endDate || now.toISOString(),
       });
 
     if (popularSurveysError) {
@@ -165,7 +158,7 @@ export async function GET(request: Request) {
     const responsesByDay = processDataByDay(responseData || []);
     return NextResponse.json({
       surveyCreation: surveyCreationByDay,
-      responses: responsesByDay,
+      responsesPerDay: responsesByDay,
       popularSurveys: popularSurveysWithDetails,
       totals: {
         surveys: surveyCount.count || 0,

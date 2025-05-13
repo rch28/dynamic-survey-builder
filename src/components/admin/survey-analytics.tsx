@@ -33,8 +33,15 @@ import {
 import { toast } from "sonner";
 
 interface SurveyAnalytics {
-  totalSurveys: number;
-  totalResponses: number;
+  totals: {
+    surveys: number;
+    responses: number;
+    users: number;
+  };
+  surveyCreation: {
+    date: string;
+    count: number;
+  }[];
   responsesPerDay: {
     date: string;
     count: number;
@@ -68,7 +75,13 @@ export function SurveyAnalytics() {
 
       if (response.ok) {
         const data = await response.json();
-        setAnalytics(data);
+        setAnalytics({
+          totals: data.totals || { surveys: 0, responses: 0, users: 0 },
+          surveyCreation: data.surveyCreation || [],
+          responsesPerDay: data.responsesPerDay || [],
+          surveysByCategory: data.surveysByCategory || [],
+          topSurveys: data.popularSurveys || [],
+        });
       } else {
         toast.error("Error", {
           description: "Failed to fetch analytics data",
@@ -148,7 +161,7 @@ export function SurveyAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  {analytics.totalSurveys}
+                  {analytics.totals.surveys}
                 </div>
               </CardContent>
             </Card>
@@ -158,39 +171,71 @@ export function SurveyAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  {analytics.totalResponses}
+                  {analytics.totals.responses}
                 </div>
               </CardContent>
             </Card>
           </div>
 
           <div className="space-y-8">
-            <div>
-              <h3 className="text-lg font-medium mb-4">Responses Over Time</h3>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={analytics.responsesPerDay}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      name="Responses"
-                      stroke="#8884d8"
-                      activeDot={{ r: 8 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h3 className="text-lg font-medium mb-4">
+                  Responses Over Time
+                </h3>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={analytics.responsesPerDay}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        name="Responses"
+                        stroke="#8884d8"
+                        activeDot={{ r: 8 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium mb-4">Surveys Over Time</h3>
+                <div className="h-80">
+                  {analytics.surveyCreation &&
+                  analytics.surveyCreation.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={analytics.surveyCreation}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="count"
+                          name="Surveys"
+                          stroke="#8884d8"
+                          activeDot={{ r: 8 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-gray-50 rounded-md">
+                      <p className="text-gray-500">No survey data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
               <div>
                 <h3 className="text-lg font-medium mb-4">
                   Surveys by Category
