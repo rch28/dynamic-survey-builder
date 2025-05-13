@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       query = query.eq("user_id", userId);
     }
     // Execute query
-    const { data, error, count } = await query;
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching logs:", error);

@@ -169,13 +169,12 @@ export async function POST(
     }
 
     // Check if the user is already a collaborator
-    const { data: existingCollaborator, error: existingError } =
-      await supabaseAdmin
-        .from("collaborators")
-        .select("id")
-        .eq("survey_id", params.id)
-        .eq("user_id", userData.id)
-        .single();
+    const { data: existingCollaborator } = await supabaseAdmin
+      .from("collaborators")
+      .select("id")
+      .eq("survey_id", params.id)
+      .eq("user_id", userData.id)
+      .single();
 
     if (existingCollaborator) {
       return NextResponse.json(

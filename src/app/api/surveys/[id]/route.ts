@@ -146,7 +146,7 @@ export async function PUT(request: NextRequest) {
       .eq("user_id", userId)
       .maybeSingle();
 
-    let isOwner = !!ownedSurvey;
+    const isOwner = !!ownedSurvey;
     let canEdit = isOwner;
 
     // If not the owner, check if user is a collaborator with editor role

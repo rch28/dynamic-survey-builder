@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
 import { getServerSession } from "@/lib/auth/getServerSession";
 
 export async function GET() {

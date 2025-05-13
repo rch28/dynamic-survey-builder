@@ -53,41 +53,40 @@ export function VisitorStats() {
   });
 
   useEffect(() => {
-    fetchStats();
-  }, [dateRange]);
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const queryParams = new URLSearchParams();
 
-  const fetchStats = async () => {
-    try {
-      setIsLoading(true);
-      const queryParams = new URLSearchParams();
+        if (dateRange?.from) {
+          queryParams.append("from", format(dateRange.from, "yyyy-MM-dd"));
+        }
 
-      if (dateRange?.from) {
-        queryParams.append("from", format(dateRange.from, "yyyy-MM-dd"));
-      }
+        if (dateRange?.to) {
+          queryParams.append("to", format(dateRange.to, "yyyy-MM-dd"));
+        }
 
-      if (dateRange?.to) {
-        queryParams.append("to", format(dateRange.to, "yyyy-MM-dd"));
-      }
+        const response = await fetch(`/api/admin/visitors?${queryParams}`);
 
-      const response = await fetch(`/api/admin/visitors?${queryParams}`);
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      } else {
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        } else {
+          toast.error("Error", {
+            description: "Failed to fetch visitor statistics",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch visitor stats:", error);
         toast.error("Error", {
           description: "Failed to fetch visitor statistics",
         });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch visitor stats:", error);
-      toast.error("Error", {
-        description: "Failed to fetch visitor statistics",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    fetchStats();
+  }, [dateRange]);
 
   const COLORS = [
     "#0088FE",

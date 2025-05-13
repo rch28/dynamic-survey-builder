@@ -63,39 +63,38 @@ export function SurveyAnalytics() {
   const [timeRange, setTimeRange] = useState("30days");
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange]);
+    const fetchAnalytics = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(
+          `/api/admin/analytics?timeRange=${timeRange}`
+        );
 
-  const fetchAnalytics = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(
-        `/api/admin/analytics?timeRange=${timeRange}`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics({
-          totals: data.totals || { surveys: 0, responses: 0, users: 0 },
-          surveyCreation: data.surveyCreation || [],
-          responsesPerDay: data.responsesPerDay || [],
-          surveysByCategory: data.surveysByCategory || [],
-          topSurveys: data.popularSurveys || [],
-        });
-      } else {
+        if (response.ok) {
+          const data = await response.json();
+          setAnalytics({
+            totals: data.totals || { surveys: 0, responses: 0, users: 0 },
+            surveyCreation: data.surveyCreation || [],
+            responsesPerDay: data.responsesPerDay || [],
+            surveysByCategory: data.surveysByCategory || [],
+            topSurveys: data.popularSurveys || [],
+          });
+        } else {
+          toast.error("Error", {
+            description: "Failed to fetch analytics data",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch analytics:", error);
         toast.error("Error", {
           description: "Failed to fetch analytics data",
         });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch analytics:", error);
-      toast.error("Error", {
-        description: "Failed to fetch analytics data",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    fetchAnalytics();
+  }, [timeRange]);
 
   const COLORS = [
     "#0088FE",
