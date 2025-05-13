@@ -27,16 +27,18 @@ export async function signup(formData: FormData) {
     email: formData.get("email") as string,
     password: formData.get("password") as string,
   };
-  const { error } = await supabase.auth.signUp({
+  const { data: authData, error } = await supabase.auth.signUp({
     email: data.email,
     password: data.password,
     options: {
       data: {
         name: data.name,
+        avatar_url: "",
       },
       // emailRedirectTo: `${env.SITE_URL}/verify/callback`,
     },
   });
+  console.log("error", error, authData);
 
   if (error) {
     // redirect("/error");
@@ -48,6 +50,25 @@ export async function signup(formData: FormData) {
       } else {
         return { error: { field: "form", message: error.message } };
       }
+    }
+  } else if (authData.user) {
+    const { error: userError } = await supabase.from("users").upsert(
+      {
+        id: authData.user.id,
+        email: data.email,
+        name: data.name,
+        avatar_url: "",
+      },
+      {
+        onConflict: "id",
+        ignoreDuplicates: false,
+      }
+    );
+    if (userError) {
+      console.error("Error creating user record:", userError);
+      return {
+        error: { field: "form", message: "Failed to create user record" },
+      };
     }
   }
   revalidatePath("/", "layout");

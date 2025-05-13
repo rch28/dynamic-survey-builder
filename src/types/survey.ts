@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CollaboratorRole } from "./collaboration";
 
 // Question Type Enum
 export enum QuestionType {
@@ -15,7 +16,7 @@ const baseQuestionSchema = z.object({
   id: z.string(),
   title: z.string().min(1, "Question text is required"),
   description: z.string().optional(),
-  required: z.boolean().default(false).optional(),
+  required: z.boolean().default(false),
 });
 
 // Text Question Schema
@@ -79,12 +80,84 @@ export const questionSchema = z
     })
   );
 
+// Survey Metadata Schema
+export const surveyMetadataSchema = z.object({
+  tags: z.array(z.string()).default([]),
+  category: z.string().optional(),
+  isPublic: z.boolean().default(false),
+  allowAnonymousResponses: z.boolean().default(true),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  estimatedCompletionTime: z.number().optional(),
+});
+
 // Survey Schema
 export const surveySchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1, "Survey title is required"),
   description: z.string().optional(),
   questions: z.array(questionSchema),
+  metadata: surveyMetadataSchema.default({}),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  lastSavedAt: z.string().optional(),
+  isDraft: z.boolean().default(true),
+});
+
+// Collaborator Schema
+export const collaboratorSchema = z.object({
+  id: z.string().optional(),
+  surveyId: z.string(),
+  userId: z.string(),
+  role: z.nativeEnum(CollaboratorRole).default(CollaboratorRole.VIEWER),
+  user: z
+    .object({
+      id: z.string(),
+      email: z.string(),
+      name: z.string(),
+      avatarUrl: z.string().optional(),
+    })
+    .optional(),
+  created_at: z.string().optional(),
+});
+// Response Schema
+export const responseSchema = z.object({
+  id: z.string().optional(),
+  surveyId: z.string(),
+  respondentId: z.string().optional(),
+  answers: z.record(z.string(), z.any()),
+  metadata: z.record(z.string(), z.any()).optional(),
+  createdAt: z.string().optional(),
+});
+// Activity Log Schema
+export const activityLogSchema = z.object({
+  id: z.string().optional(),
+  userId: z.string().optional(),
+  action: z.string(),
+  resourceType: z.string(),
+  resourceId: z.string().optional(),
+  details: z.record(z.string(), z.any()).optional(),
+  ipAddress: z.string().optional(),
+  createdAt: z.string().optional(),
+  user: z
+    .object({
+      name: z.string(),
+      email: z.string(),
+    })
+    .optional(),
+});
+
+// Visitor Schema
+export const visitorSchema = z.object({
+  id: z.string().optional(),
+  surveyId: z.string(),
+  visitorId: z.string(),
+  ipAddress: z.string().optional(),
+  userAgent: z.string().optional(),
+  referrer: z.string().optional(),
+  completed: z.boolean().default(false),
+  startedAt: z.string().optional(),
+  completedAt: z.string().optional(),
 });
 
 // TypeScript types derived from Zod schemas
@@ -100,7 +173,12 @@ export type ScaleQuestion = z.infer<typeof scaleQuestionSchema>;
 export type DateQuestion = z.infer<typeof dateQuestionSchema>;
 export type Question = z.infer<typeof questionSchema>;
 export type ConditionalLogic = z.infer<typeof conditionalLogicSchema>;
+export type SurveyMetadata = z.infer<typeof surveyMetadataSchema>;
 export type Survey = z.infer<typeof surveySchema>;
+export type Collaborator = z.infer<typeof collaboratorSchema>;
+export type Response = z.infer<typeof responseSchema>;
+export type ActivityLog = z.infer<typeof activityLogSchema>;
+export type Visitor = z.infer<typeof visitorSchema>;
 
 // Type guard functions
 export function isTextQuestion(question: Question): question is TextQuestion {

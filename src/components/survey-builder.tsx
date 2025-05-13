@@ -7,8 +7,16 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { Download, MessageSquare, Plus, Save, Upload } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import {
+  Download,
+  MessageSquare,
+  Plus,
+  Save,
+  Upload,
+  Settings,
+  Users,
+} from "lucide-react";
+import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 import { Separator } from "./ui/separator";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { QuestionEditor } from "./question-editor";
@@ -22,28 +30,39 @@ import { useSurveyForm } from "@/hooks/use-survey-form";
 import { Form } from "./ui/form";
 import { Input } from "./ui/input";
 import { QuestionItem } from "./question-item";
-import { useQuestions, useSurvey } from "@/hooks/use-store";
 import { QuestionTypeSelector } from "./question-type-selector";
 import { QuestionSuggestionChat } from "./question-suggestion-chat";
+import { createInitialSurvey, useSurveyStore } from "@/store/survey-store";
+import { SurveyMetadata } from "./survey-metadata";
+import { SurveyDrafts } from "./survey-drafts";
+import { CollaboratorList } from "./collaboration/collaborator-list";
 
 interface SurveyBuilderProps {
   initialSurvey?: Survey | null;
 }
 
 const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
-  // Use Zustand store instead of local state
-  const { survey, setSurvey, updateTitle, markAsSaved } = useSurvey();
-  const { selectedId, select, add, remove, reorder } = useQuestions();
-
+  const survey = useSurveyStore((state) => state.survey);
+  const setSurvey = useSurveyStore((state) => state.setSurvey);
+  const selectedQuestionId = useSurveyStore(
+    (state) => state.selectedQuestionId
+  );
+  const selectQuestion = useSurveyStore((state) => state.selectQuestion);
+  const addQuestion = useSurveyStore((state) => state.addQuestion);
+  const removeQuestion = useSurveyStore((state) => state.removeQuestion);
+  const reorderQuestions = useSurveyStore((state) => state.reorderQuestions);
+  const updateSurveyTitle = useSurveyStore((state) => state.updateSurveyTitle);
+  const markAsSaved = useSurveyStore((state) => state.markAsSaved);
   // Use React Hook Form
-  const { form, onSubmit } = useSurveyForm();
+  const { form } = useSurveyForm();
 
   const [surveyId, setSurveyId] = useState<string | null>(
     initialSurvey?.id || null
   );
 
   const [isChatOpen, setIsChatOpen] = useState(false);
-
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCollaborationOpen, setIsCollaborationOpen] = useState(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const { user } = useAuth();
   const router = useRouter();
@@ -54,15 +73,15 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
         title: initialSurvey.title || "Untitled Survey",
         description: initialSurvey.description || "",
         questions: initialSurvey.questions || [],
+        metadata: {
+          ...createInitialSurvey().metadata,
+          ...initialSurvey.metadata,
+        },
+        isDraft: false,
+        created_at: initialSurvey.created_at || new Date().toISOString(),
+        updated_at: initialSurvey.updated_at || new Date().toISOString(),
       });
       setSurveyId(initialSurvey.id || null);
-    } else {
-      setSurvey({
-        id: "",
-        title: "Untitled Survey",
-        description: "",
-        questions: [],
-      });
     }
   }, [initialSurvey, setSurvey]);
   const handleDragEnd = (event: DragEndEvent) => {
@@ -76,11 +95,11 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
         (item) => item.id === over.id
       );
 
-      reorder(oldIndex, newIndex);
+      reorderQuestions(oldIndex, newIndex);
     }
   };
   const handleQuestionTypeSelect = (type: QuestionType) => {
-    add(type);
+    addQuestion(type);
   };
 
   // import survey data from a JSON file
@@ -97,6 +116,10 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
             title: surveyData.title,
             description: surveyData.description || "",
             questions: surveyData.questions,
+            metadata: surveyData.metadata || {},
+            isDraft: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           });
         }
       } catch (e) {
@@ -114,7 +137,9 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
     // get survey data
     const surveyData = {
       title: survey.title,
+      description: survey.description,
       questions: survey.questions,
+      metadata: survey.metadata,
     };
     const dataStr = JSON.stringify(surveyData, null, 2);
 
@@ -143,7 +168,9 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
       setIsSaving(true);
       const surveyData = {
         title: survey.title,
+        description: survey.description,
         questions: survey.questions,
+        metadata: survey.metadata,
       };
 
       const url = surveyId ? `/api/surveys/${surveyId}` : "/api/surveys";
@@ -190,53 +217,125 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
     <div className="flex flex-col h-screen">
       {/* Header */}
       <header className="border-b">
-        <div className="p-8 flex items-center justify-between py-4">
-          <div>
-            <h1 className="text-2xl font-bold">Survey Builder</h1>
-            <p className="text-muted-foreground">
-              Create and manage your surveys
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={exportSurvey}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-            <div className="relative">
-              <Button variant="outline" size="sm">
-                <Upload className="mr-2 h-4 w-4" />
-                Import
-              </Button>
-              <input
-                type="file"
-                accept=".json"
-                onChange={importSurvey}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
+        <div className="p-8 space-y-6 py-4 ">
+          <div className="flex items-center justify-between">
+            <div className="">
+              <h1 className="text-2xl font-bold">Survey Builder</h1>
+              <p className="text-muted-foreground">
+                Create and manage your surveys
+              </p>
             </div>
-            {/* Add AI suggestion button */}
-            <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-              <SheetTrigger asChild>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={exportSurvey}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <div className="relative">
                 <Button variant="outline" size="sm">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  AI Suggestions
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[400px] sm:w-[540px] p-0">
-                <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold">AI Question Suggestions</h3>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={importSurvey}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </div>
+              {/* AI suggestion button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsChatOpen(true)}
+                className="flex items-center"
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                AI Suggestions
+              </Button>
+              <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
+                <SheetContent
+                  side="right"
+                  className="w-[400px] sm:w-[540px] p-0"
+                >
+                  <div className="flex flex-col h-full">
+                    <SheetTitle className="flex items-center justify-between p-4 border-b">
+                      <span className="font-semibold">
+                        AI Question Suggestions
+                      </span>
+                    </SheetTitle>
+                    <div className="flex-1 overflow-hidden">
+                      <QuestionSuggestionChat />
+                    </div>
                   </div>
-                  <div className="flex-1 overflow-hidden">
-                    <QuestionSuggestionChat />
+                </SheetContent>
+              </Sheet>
+            </div>
+          </div>
+          <div className="flex justify-between w-full ">
+            <div></div>
+            <div className="flex items-center flex-wrap gap-2 ">
+              {/* Survey Drafts */}
+              <SurveyDrafts />
+
+              {/* Collaboration button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCollaborationOpen(true)}
+                disabled={!surveyId}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Collaborate
+              </Button>
+              <Sheet
+                open={isCollaborationOpen}
+                onOpenChange={setIsCollaborationOpen}
+              >
+                <SheetContent
+                  side="right"
+                  className="w-[400px] sm:w-[540px] overflow-y-auto"
+                >
+                  <div className="flex flex-col h-full">
+                    <SheetTitle className="flex items-center justify-between p-4 border-b">
+                      <span className="font-semibold">Collaboration</span>
+                    </SheetTitle>
+                    <div className="flex-1 overflow-y-auto p-4">
+                      <CollaboratorList />
+                    </div>
                   </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-            <Button size="sm" onClick={saveSurvey} disabled={isSaving}>
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Save Survey"}
-            </Button>
+                </SheetContent>
+              </Sheet>
+              {/* Settings button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSettingsOpen(true)}
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Button>
+              {/* Settings sheet */}
+              <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <SheetContent
+                  side="right"
+                  className="w-[400px] sm:w-[540px] overflow-y-auto"
+                >
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between p-4 border-b">
+                      <h3 className="font-semibold">Survey Settings</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4">
+                      <SurveyMetadata />
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <Button size="sm" onClick={saveSurvey} disabled={isSaving}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? "Saving..." : "Save Survey"}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -263,10 +362,10 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
           </TabList>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form className="space-y-4">
               <Input
                 value={survey.title}
-                onChange={(e) => updateTitle(e.target.value)}
+                onChange={(e) => updateSurveyTitle(e.target.value)}
                 className="text-xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary/20 rounded px-2 py-1"
               />
             </form>
@@ -288,7 +387,7 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                       <div className="text-muted-foreground mb-4">
                         No questions added yet
                       </div>
-                      <Button onClick={() => add(QuestionType.TEXT)}>
+                      <Button onClick={() => addQuestion(QuestionType.TEXT)}>
                         <Plus className="mr-2 h-4 w-4" />
                         Add your first question
                       </Button>
@@ -308,9 +407,9 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                             <QuestionItem
                               key={question.id}
                               question={question}
-                              isSelected={selectedId === question.id}
-                              onClick={() => select(question.id)}
-                              onRemove={() => remove(question.id)}
+                              isSelected={selectedQuestionId === question.id}
+                              onClick={() => selectQuestion(question.id)}
+                              onRemove={() => removeQuestion(question.id)}
                             />
                           ))}
                         </div>
@@ -321,13 +420,13 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
               </div>
               {/* Question Editor */}
               <div>
-                {selectedId ? (
+                {selectedQuestionId ? (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-lg font-medium mb-4">
                         Question Settings
                       </h2>
-                      <QuestionEditor questionId={selectedId} />
+                      <QuestionEditor questionId={selectedQuestionId} />
                     </div>
                     <Separator />
                     <div>
@@ -335,9 +434,9 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
                         Conditional Logic
                       </h2>
                       <ConditionalLogicEditor
-                        questionId={selectedId}
+                        questionId={selectedQuestionId}
                         questions={survey.questions.filter(
-                          (q) => q.id !== selectedId
+                          (q) => q.id !== selectedQuestionId
                         )}
                       />
                     </div>

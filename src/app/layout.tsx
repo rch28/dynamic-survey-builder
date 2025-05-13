@@ -6,7 +6,6 @@ import { AuthProvider } from "@/contexts/auth-context";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { Navbar } from "@/components/navbar";
-import { getServerSession } from "@/lib/auth/getServerSession";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,14 +20,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getServerSession();
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
-          <Navbar user={user} />
           <AuthProvider>
+            <Navbar />
             {children}
             <Toaster />
           </AuthProvider>

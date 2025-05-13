@@ -1,9 +1,8 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useSurveyStore } from "@/store/survey-store";
-import { questionSchema, type Question } from "@/types/survey";
+import { type Question } from "@/types/survey";
 import { useEffect } from "react";
 
 export function useQuestionForm(questionId: string | null) {
@@ -17,7 +16,6 @@ export function useQuestionForm(questionId: string | null) {
 
   // Initialize the form with the current question data
   const form = useForm<Question>({
-    resolver: zodResolver(questionSchema),
     defaultValues: currentQuestion || undefined,
   });
 

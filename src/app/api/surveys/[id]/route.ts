@@ -42,20 +42,72 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
-    // Fetch survey from Supabase
-    const { data: survey, error } = await supabaseAdmin
+    // First, check if user is the owner
+    const { data: ownedSurvey, error: ownedError } = await supabaseAdmin
       .from("surveys")
       .select("*")
       .eq("id", surveyId)
       .eq("user_id", userId)
       .single();
 
-    if (error) {
-      console.error("Database error:", error);
-      return NextResponse.json({ error: "Survey not found" }, { status: 404 });
+    if (ownedSurvey && !ownedError) {
+      // Get user information in a separate query
+      const { data: userData } = await supabaseAdmin
+        .from("users")
+        .select("name, email, avatar_url")
+        .eq("id", ownedSurvey.user_id)
+        .single();
+
+      // User is the owner, return with ownership flag and user data
+      return NextResponse.json(
+        {
+          survey: {
+            ...ownedSurvey,
+            isOwner: true,
+            user: userData || null,
+          },
+        },
+        { status: 200 }
+      );
+    }
+    // If not the owner, check if user is a collaborator
+    const { data: collaboration, error: collabError } = await supabaseAdmin
+      .from("collaborators")
+      .select(" role, survey_id")
+      .eq("survey_id", surveyId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (collaboration && !collabError) {
+      // Get the survey
+      const { data: surveyData } = await supabaseAdmin
+        .from("surveys")
+        .select("*")
+        .eq("id", collaboration.survey_id)
+        .single();
+
+      // Get owner information
+      const { data: ownerData } = await supabaseAdmin
+        .from("users")
+        .select("name, email, avatar_url")
+        .eq("id", surveyData.user_id)
+        .single();
+
+      // User is a collaborator, return with role
+      return NextResponse.json(
+        {
+          survey: {
+            ...surveyData,
+            isOwner: false,
+            role: collaboration.role,
+            user: ownerData || null,
+          },
+        },
+        { status: 200 }
+      );
     }
 
-    return NextResponse.json({ survey }, { status: 200 });
+    return NextResponse.json({ error: "Survey not found" }, { status: 404 });
   } catch (error) {
     console.error("Error in GET /api/surveys:", error);
     return NextResponse.json(
@@ -86,17 +138,52 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    // Update survey in Supabase
+    // Check if user is the owner
+    const { data: ownedSurvey } = await supabaseAdmin
+      .from("surveys")
+      .select("id")
+      .eq("id", surveyId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const isOwner = !!ownedSurvey;
+    let canEdit = isOwner;
+
+    // If not the owner, check if user is a collaborator with editor role
+    if (!isOwner) {
+      const { data: collaboration } = await supabaseAdmin
+        .from("collaborators")
+        .select("role")
+        .eq("survey_id", surveyId)
+        .eq("user_id", userId)
+        .eq("role", "editor")
+        .maybeSingle();
+
+      canEdit = !!collaboration;
+    }
+
+    // Return error if user doesn't have permission
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: "You don't have permission to edit this survey" },
+        { status: 403 }
+      );
+    }
+
+    // Update survey in Supabase (without the user_id filter so collaborators can edit)
     const { data: updatedSurvey, error } = await supabaseAdmin
       .from("surveys")
       .update({
         title: surveyData.title,
         questions: surveyData.questions,
+        description: surveyData.description || "",
+        metadata: surveyData.metadata || {},
+        updated_at: new Date().toISOString(),
       })
-      .eq("id", surveyId)
-      .eq("user_id", userId)
+      .eq("id", surveyId) // Only filter by survey ID, not by user_id
       .select()
       .single();
+
     if (error) {
       console.error("Database error:", error);
       return NextResponse.json(
@@ -105,7 +192,34 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ survey: updatedSurvey }, { status: 200 });
+    // Activity log with user role context
+    await supabaseAdmin.from("activity_logs").insert({
+      user_id: userId,
+      action: "update_survey",
+      resource_type: "survey",
+      resource_id: surveyId,
+      details: {
+        updated_as: isOwner ? "owner" : "collaborator",
+        updated_field: {
+          title: surveyData.title,
+          questions: surveyData.questions,
+          description: surveyData.description,
+          metadata: surveyData.metadata,
+        },
+      },
+    });
+
+    // Include role information in the response
+    return NextResponse.json(
+      {
+        survey: {
+          ...updatedSurvey,
+          isOwner,
+          role: isOwner ? null : "editor",
+        },
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Error in PUT /api/surveys:", error);
     return NextResponse.json(
@@ -129,12 +243,33 @@ export async function DELETE(request: NextRequest) {
         { status: 401 }
       );
     }
+    // Check if user is the owner (only owners can delete surveys)
+    const { data: ownedSurvey } = await supabaseAdmin
+      .from("surveys")
+      .select("id")
+      .eq("id", surveyId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!ownedSurvey) {
+      return NextResponse.json(
+        { error: "Only the survey owner can delete this survey" },
+        { status: 403 }
+      );
+    }
+
+    // First delete all collaborators
+    await supabaseAdmin
+      .from("collaborators")
+      .delete()
+      .eq("survey_id", surveyId);
+
     // Delete survey from Supabase
     const { error } = await supabaseAdmin
       .from("surveys")
       .delete()
-      .eq("id", surveyId)
-      .eq("user_id", userId);
+      .eq("id", surveyId);
+
     if (error) {
       console.error("Database error:", error);
       return NextResponse.json(
@@ -142,6 +277,17 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Activity log
+    await supabaseAdmin.from("activity_logs").insert({
+      user_id: userId,
+      action: "delete_survey",
+      resource_type: "survey",
+      resource_id: surveyId,
+      details: {
+        deleted_as: "owner",
+      },
+    });
 
     return NextResponse.json(
       { message: "Survey deleted successfully" },

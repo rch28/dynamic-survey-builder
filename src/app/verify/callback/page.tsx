@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
-export default function VerifyCallback() {
+// Create a client component that uses useSearchParams
+function VerifyCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"verifying" | "error" | "success">(
@@ -40,7 +41,7 @@ export default function VerifyCallback() {
   if (status === "verifying")
     return (
       <div className="w-screen h-screen flex justify-center items-center">
-        <span> Verifying your email...</span>
+        <span>Verifying your email...</span>
       </div>
     );
   if (status === "error")
@@ -50,4 +51,19 @@ export default function VerifyCallback() {
       </div>
     );
   return null;
+}
+
+// Main page component with Suspense
+export default function VerifyCallback() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-screen h-screen flex justify-center items-center">
+          <span>Loading verification page...</span>
+        </div>
+      }
+    >
+      <VerifyCallbackContent />
+    </Suspense>
+  );
 }

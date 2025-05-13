@@ -10,16 +10,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserIcon } from "lucide-react";
 import { ThemeSelector } from "@/components/theme-selector";
-import { logout } from "@/actions/action";
-import { User } from "@supabase/supabase-js";
-import { usePathname } from "next/navigation";
 
-export function Navbar({ user }: { user: User | null }) {
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
+import { useSurveyStore } from "@/store/survey-store";
+
+export function Navbar() {
   const pathname = usePathname();
+  const { logout, user } = useAuth();
+  const resetState = useSurveyStore((state) => state.resetState);
 
   if (pathname === "/login" || pathname === "/register") {
     return null;
   }
+  const handleLogout = () => {
+    logout();
+    resetState();
+  };
   return (
     <header className="border-b">
       <div className="p-8 flex h-16 items-center justify-between w-full">
@@ -67,9 +74,9 @@ export function Navbar({ user }: { user: User | null }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {/* <div className="px-2 py-1.5 text-sm font-medium">
+                <div className="px-2 py-1.5 text-sm font-medium">
                   {user.name}
-                </div> */}
+                </div>
                 <div className="px-2 py-1.5 text-xs text-muted-foreground">
                   {user.email}
                 </div>
@@ -80,8 +87,14 @@ export function Navbar({ user }: { user: User | null }) {
                 <DropdownMenuItem asChild>
                   <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
+                {user.role === "admin" && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin">Admin</Link>
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={async () => await logout()}>
+                <DropdownMenuItem onClick={handleLogout}>
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
