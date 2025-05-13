@@ -4,8 +4,9 @@ import { getServerSession } from "@/lib/auth/getServerSession";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string; collaboratorId: string } }
+  { params }: { params: Promise<{ id: string; collaboratorId: string }> }
 ) {
+  const { id, collaboratorId } = await params;
   try {
     const user = await getServerSession();
 
@@ -25,7 +26,7 @@ export async function PATCH(
     const { data: survey, error: surveyError } = await supabaseAdmin
       .from("surveys")
       .select("id")
-      .eq("id", params.id)
+      .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
@@ -37,8 +38,8 @@ export async function PATCH(
     const { data: collaborator, error } = await supabaseAdmin
       .from("collaborators")
       .update({ role })
-      .eq("id", params.collaboratorId)
-      .eq("survey_id", params.id)
+      .eq("id", collaboratorId)
+      .eq("survey_id", id)
       .select("id, user_id, role")
       .single();
 
@@ -55,7 +56,7 @@ export async function PATCH(
       user_id: user.id,
       action: "update_collaborator",
       resource_type: "survey",
-      resource_id: params.id,
+      resource_id: id,
       details: { collaborator_id: collaborator.user_id, role },
     });
 
@@ -71,8 +72,9 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string; collaboratorId: string } }
+  { params }: { params: Promise<{ id: string; collaboratorId: string }> }
 ) {
+  const { id, collaboratorId } = await params;
   try {
     const user = await getServerSession();
 
@@ -87,7 +89,7 @@ export async function DELETE(
     const { data: survey, error: surveyError } = await supabaseAdmin
       .from("surveys")
       .select("id")
-      .eq("id", params.id)
+      .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
@@ -99,7 +101,7 @@ export async function DELETE(
     const { data: collaborator, error: getError } = await supabaseAdmin
       .from("collaborators")
       .select("user_id")
-      .eq("id", params.collaboratorId)
+      .eq("id", collaboratorId)
       .single();
 
     if (getError) {
@@ -114,8 +116,8 @@ export async function DELETE(
     const { error } = await supabaseAdmin
       .from("collaborators")
       .delete()
-      .eq("id", params.collaboratorId)
-      .eq("survey_id", params.id);
+      .eq("id", collaboratorId)
+      .eq("survey_id", id);
 
     if (error) {
       console.error("Database error:", error);
@@ -130,7 +132,7 @@ export async function DELETE(
       user_id: user.id,
       action: "remove_collaborator",
       resource_type: "survey",
-      resource_id: params.id,
+      resource_id: id,
       details: { collaborator_id: collaborator.user_id },
     });
 

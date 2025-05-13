@@ -1,17 +1,7 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
+import { isAdmin } from "@/lib/auth/isAdmin";
 import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
-
-export async function isAdmin() {
-  const user = await getServerSession();
-  if (!user) {
-    return false;
-  }
-  if (user.user_metadata.role !== "admin") {
-    return false;
-  }
-  return true;
-}
 
 export async function GET(request: NextRequest) {
   try {

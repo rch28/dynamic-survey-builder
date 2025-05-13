@@ -1,7 +1,8 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
 import { NextResponse } from "next/server";
-import { isAdmin } from "../logs/route";
 import { supabaseAdmin } from "@/lib/supabase";
+import { Survey } from "@/types/survey";
+import { isAdmin } from "@/lib/auth/isAdmin";
 
 interface PopularSurvey {
   survey_id: string;
@@ -177,7 +178,7 @@ export async function GET(request: Request) {
 }
 
 // Helper function to process time-series data
-function processDataByDay(data: any[]) {
+function processDataByDay(data: { created_at: string }[]) {
   const groupedByDay: Record<string, number> = {};
 
   data.forEach((item) => {
@@ -200,7 +201,7 @@ function processDataByDay(data: any[]) {
     }));
 }
 
-function processCategoryData(surveys: any[]) {
+function processCategoryData(surveys: Pick<Survey, "metadata">[]) {
   const categories: Record<string, number> = {};
 
   surveys.forEach((survey) => {

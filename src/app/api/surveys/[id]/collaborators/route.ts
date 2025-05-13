@@ -5,8 +5,9 @@ import { getServerSession } from "@/lib/auth/getServerSession";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const user = await getServerSession();
 
@@ -21,7 +22,7 @@ export async function GET(
     const { data: survey, error: surveyError } = await supabaseAdmin
       .from("surveys")
       .select("id")
-      .eq("id", params.id)
+      .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
@@ -31,7 +32,7 @@ export async function GET(
         await supabaseAdmin
           .from("collaborators")
           .select("id")
-          .eq("survey_id", params.id)
+          .eq("survey_id", id)
           .eq("user_id", user.id)
           .single();
 
@@ -58,7 +59,7 @@ export async function GET(
         )
       `
       )
-      .eq("survey_id", params.id);
+      .eq("survey_id", id);
 
     if (error) {
       console.error("Database error:", error);
@@ -93,8 +94,9 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const currentUser = await getServerSession();
 
@@ -115,7 +117,7 @@ export async function POST(
     const { data: survey, error: surveyError } = await supabaseAdmin
       .from("surveys")
       .select("id")
-      .eq("id", params.id)
+      .eq("id", id)
       .eq("user_id", currentUser.id)
       .single();
 
@@ -125,7 +127,7 @@ export async function POST(
         await supabaseAdmin
           .from("collaborators")
           .select("role")
-          .eq("survey_id", params.id)
+          .eq("survey_id", id)
           .eq("user_id", currentUser.id)
           .eq("role", CollaboratorRole.EDITOR)
           .single();
@@ -172,7 +174,7 @@ export async function POST(
     const { data: existingCollaborator } = await supabaseAdmin
       .from("collaborators")
       .select("id")
-      .eq("survey_id", params.id)
+      .eq("survey_id", id)
       .eq("user_id", userData.id)
       .single();
 
@@ -187,7 +189,7 @@ export async function POST(
     const { data: collaborator, error } = await supabaseAdmin
       .from("collaborators")
       .insert({
-        survey_id: params.id,
+        survey_id: id,
         user_id: userData.id,
         role: role || CollaboratorRole.VIEWER,
       })
@@ -207,7 +209,7 @@ export async function POST(
       user_id: currentUser.id,
       action: "add_collaborator",
       resource_type: "survey",
-      resource_id: params.id,
+      resource_id: id,
       details: {
         collaborator_id: userData.id,
         collaborator_email: email,
