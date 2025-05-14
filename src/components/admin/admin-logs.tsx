@@ -60,7 +60,7 @@ export function AdminLogs() {
       if (response.ok) {
         const data = await response.json();
         setLogs(data.logs);
-        setTotalPages(data.totalPages);
+        setTotalPages(data.pagination.pages);
       } else {
         toast.error("Error", {
           description: "Failed to fetch activity logs",

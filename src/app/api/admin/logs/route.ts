@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get("endDate");
     const type = searchParams.get("type");
     const userId = searchParams.get("userId");
+    const action = searchParams.get("action");
 
     // Build the query
     let query = supabaseAdmin
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest) {
     }
     if (userId) {
       query = query.eq("user_id", userId);
+    }
+    if (action) {
+      query = query.eq("action", action);
     }
     // Execute query
     const { data, error } = await query;
