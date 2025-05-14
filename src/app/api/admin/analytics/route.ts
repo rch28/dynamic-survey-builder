@@ -1,8 +1,8 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
 import { Survey } from "@/types/survey";
 import { isAdmin } from "@/lib/auth/isAdmin";
+import { createClient } from "@/utils/supabase/server";
 
 interface PopularSurvey {
   survey_id: string;
@@ -24,6 +24,13 @@ interface PopularSurveyWithDetails extends SurveyDetail {
 
 export async function GET(request: Request) {
   try {
+    const supabaseAdmin = await createClient();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const user = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

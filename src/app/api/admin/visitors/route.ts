@@ -5,6 +5,13 @@ import { isAdmin } from "@/lib/auth/isAdmin";
 
 export async function GET(request: Request) {
   try {
+    // Check if Supabase is initialized
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     // Get the current user from cookies
     const user = await getServerSession();
 

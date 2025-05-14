@@ -5,6 +5,12 @@ import { v4 as uuidv4 } from "uuid";
 // This is a simplified example using cookies for demo purposes
 export async function POST(request: Request) {
   try {
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const { name, email, password } = await request.json();
 
     // Validate input

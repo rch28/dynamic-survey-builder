@@ -6,6 +6,13 @@ import { isAdmin } from "@/lib/auth/isAdmin";
 // GET - List users with pagination and search
 export async function GET(request: Request) {
   try {
+    // Check if Supabase is initialized
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const user = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -75,6 +82,13 @@ export async function GET(request: Request) {
 // POST - Create a new user
 export async function POST(request: Request) {
   try {
+    // Check if Supabase is initialized
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const user = await getServerSession();
 
     if (!user) {

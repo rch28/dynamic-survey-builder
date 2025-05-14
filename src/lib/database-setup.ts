@@ -2,6 +2,10 @@ import { supabaseAdmin } from "./supabase";
 
 export async function setupDatabase() {
   try {
+    if (!supabaseAdmin) {
+      console.error("Supabase client not initialized");
+      return;
+    }
     // Create surveys table
     const { error: surveysError } = await supabaseAdmin.rpc(
       "create_table_if_not_exists",

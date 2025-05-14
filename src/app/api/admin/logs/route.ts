@@ -5,6 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if Supabase is initialized
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const user = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
