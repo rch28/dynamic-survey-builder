@@ -12,21 +12,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Use Node.js instead of Bun for better compatibility with native modules
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      # Set up Bun
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '18'
-          cache: 'npm'
+          bun-version: latest
 
-      - name: Install libvips (required by sharp)
-        run: sudo apt-get update && sudo apt-get install -y libvips-dev
+      # Install system dependencies for native modules
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libvips-dev
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install project dependencies
+        run: bun install
 
-      # No need to install sharp separately, it should be in package.json
-      
+      # Install Netlify CLI using npm (still more reliable for global tools)
       - name: Install Netlify CLI
         run: npm install -g netlify-cli
 
@@ -37,14 +38,21 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.production
           echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.production
 
-      - name: Build with Netlify
-        run: netlify build
+      # Build using Bun
+      - name: Build
+        run: bun run build
         env:
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      # Check build output
+      - name: Check build output
+        run: ls -la .next/
+
+      # Deploy with Netlify
       - name: Deploy to Netlify
-        run: netlify deploy --prod
+        run: netlify deploy --dir=.next --prod
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
