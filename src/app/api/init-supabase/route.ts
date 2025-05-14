@@ -3,6 +3,12 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET() {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     // Create users table if it doesn't exist
     const { error: usersError } = await supabaseAdmin.rpc("_exec_sql", {
       query: `

@@ -28,6 +28,12 @@ function getSurveyIdFromUrl(request: NextRequest): string | null {
 }
 export async function GET(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     // Extract the id from params immediately
     const surveyId = getSurveyIdFromUrl(request);
     if (!surveyId) {
@@ -119,6 +125,12 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const surveyId = getSurveyIdFromUrl(request);
     if (!surveyId) {
       return NextResponse.json({ error: "Survey ID missing" }, { status: 400 });
@@ -231,6 +243,12 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const surveyId = getSurveyIdFromUrl(request);
     if (!surveyId) {
       return NextResponse.json({ error: "Survey ID missing" }, { status: 400 });

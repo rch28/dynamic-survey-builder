@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const { email, password } = await request.json();
 
     // Validate input

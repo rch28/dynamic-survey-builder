@@ -4,6 +4,12 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const user = await getServerSession();
 
     if (!user) {

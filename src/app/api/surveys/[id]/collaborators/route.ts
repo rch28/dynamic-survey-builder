@@ -9,6 +9,12 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const user = await getServerSession();
 
     if (!user) {
@@ -98,6 +104,12 @@ export async function POST(
 ) {
   const { id } = await params;
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const currentUser = await getServerSession();
 
     if (!currentUser) {
