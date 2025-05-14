@@ -17,6 +17,13 @@ jobs:
 
       - name: Install dependencies
         run: bun install
+      - name: Install libvips (required by sharp)
+        run: sudo apt-get update && sudo apt-get install -y libvips
+
+      - name: Install dependencies
+        run: bun install
+      - name: Install dependencies with npm fallback
+        run: npm install sharp && bun install
 
       - name: Install Netlify CLI
         run: bun add -g netlify-cli
