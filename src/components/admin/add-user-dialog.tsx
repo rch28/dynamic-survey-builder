@@ -56,7 +56,7 @@ export function AddUserDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, role }),
+        body: JSON.stringify({ name, email, role, password: "randomPassword" }),
       });
 
       if (response.ok) {
