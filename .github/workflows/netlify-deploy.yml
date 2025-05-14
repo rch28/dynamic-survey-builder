@@ -12,33 +12,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
+      # Use Node.js instead of Bun for better compatibility with native modules
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
 
       - name: Install libvips (required by sharp)
         run: sudo apt-get update && sudo apt-get install -y libvips-dev
 
       - name: Install dependencies
-        run: bun install
+        run: npm ci
 
-      - name: Install sharp
-        run: bun add sharp
-
+      # No need to install sharp separately, it should be in package.json
+      
       - name: Install Netlify CLI
-        run: bun add -g netlify-cli
+        run: npm install -g netlify-cli
+
+      # Add environment variables for Next.js
+      - name: Set Next.js environment variables
+        run: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.production
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.production
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.production
 
       - name: Build with Netlify
         run: netlify build
         env:
-          NODE_VERSION: 18
-          NEXT_USE_NETLIFY_EDGE: true
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
-          # add any other required env variables here
-
+          
       - name: Deploy to Netlify
-        run: netlify deploy --dir=.netlify/output --prod
+        run: netlify deploy --prod
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
