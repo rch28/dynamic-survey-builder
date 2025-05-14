@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getServerSession } from "@/lib/auth/getServerSession";
 import { isAdmin } from "@/lib/auth/isAdmin";
 
 export async function POST(
@@ -9,9 +8,12 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-
-    // Get the current user from cookies
-    const currentUser = await getServerSession();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
 
     // Verify admin status
     const adminCheck = await isAdmin();
