@@ -186,7 +186,7 @@ export async function PUT(request: Request) {
     await supabaseAdmin.from("activity_logs").insert({
       user_id: user.id,
       action: "update_profile",
-      resource_type: "user",
+      activity_type: "user",
       resource_id: user.id,
       details: {
         updated_fields: avatarUrl ? ["name", "avatar_url"] : ["name"],

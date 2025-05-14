@@ -149,7 +149,7 @@ export function AdminLogs() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Action</TableHead>
-                    <TableHead>Resource</TableHead>
+                    <TableHead>Activity</TableHead>
                     <TableHead>IP Address</TableHead>
                     <TableHead>Date</TableHead>
                   </TableRow>
@@ -174,7 +174,7 @@ export function AdminLogs() {
                       <TableCell>{log.action.replace(/_/g, " ")}</TableCell>
                       <TableCell>
                         <div>
-                          <div>{log.resourceType}</div>
+                          <div>{log.activityType}</div>
                           {log.resourceId && (
                             <div className="text-sm text-muted-foreground">
                               ID: {log.resourceId.substring(0, 8)}...

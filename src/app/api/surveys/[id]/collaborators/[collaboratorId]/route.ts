@@ -61,7 +61,7 @@ export async function PATCH(
     await supabaseAdmin.from("activity_logs").insert({
       user_id: user.id,
       action: "update_collaborator",
-      resource_type: "survey",
+      activity_type: "survey",
       resource_id: id,
       details: { collaborator_id: collaborator.user_id, role },
     });
@@ -143,7 +143,7 @@ export async function DELETE(
     await supabaseAdmin.from("activity_logs").insert({
       user_id: user.id,
       action: "remove_collaborator",
-      resource_type: "survey",
+      activity_type: "survey",
       resource_id: id,
       details: { collaborator_id: collaborator.user_id },
     });

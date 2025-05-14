@@ -130,7 +130,7 @@ export async function POST(request: Request) {
     await supabaseAdmin.from("activity_logs").insert({
       user_id: user.id,
       action: "create_survey",
-      resource_type: "survey",
+      activity_type: "survey",
       resource_id: data.id,
       details: {
         updated_field: {

@@ -37,9 +37,11 @@ export async function GET(request: NextRequest) {
       .select(
         `id,
         user_id,
+        action,
         activity_type,
         details,
         created_at,
+        ip_address,
         users (name, email)`
       )
       .order("created_at", { ascending: false })
@@ -60,6 +62,16 @@ export async function GET(request: NextRequest) {
     // Execute query
     const { data, error } = await query;
 
+    const logData = data?.map((log) => ({
+      id: log.id,
+      userId: log.user_id,
+      action: log.action,
+      activityType: log.activity_type,
+      details: log.details,
+      createdAt: log.created_at,
+      ipAddress: log.ip_address,
+      user: log.users,
+    }));
     if (error) {
       console.error("Error fetching logs:", error);
       return NextResponse.json(
@@ -78,7 +90,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      logs: data,
+      logs: logData || [],
       pagination: {
         page,
         limit,
