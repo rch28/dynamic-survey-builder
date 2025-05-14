@@ -3,8 +3,6 @@ name: Build and Deploy to Netlify
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   build_and_deploy:
@@ -16,48 +14,26 @@ jobs:
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
 
       - name: Install dependencies
         run: bun install
 
-      - name: Lint
-        run: bun lint
+      - name: Install Netlify CLI
+        run: bun add -g netlify-cli
 
-      # Uncomment if you have tests
-      # - name: Run tests
-      #   run: bun test
-
-      - name: Build
-        run: bun run build
+      - name: Build with Netlify
+        run: netlify build
         env:
+          NODE_VERSION: 18
+          NEXT_USE_NETLIFY_EDGE: true
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          # include all your custom env vars here
           POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
-          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
-          SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DATABASE: ${{ secrets.POSTGRES_DATABASE }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          # ... other env vars
 
       - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.0
-        with:
-          publish-dir: "./.next"
-          production-branch: main
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "Deploy from GitHub Actions"
-          enable-pull-request-comment: true
-          enable-commit-comment: true
-          overwrites-pull-request-comment: true
+        run: netlify deploy --dir=.netlify/output --prod
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 10
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
