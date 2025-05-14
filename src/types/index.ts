@@ -53,6 +53,9 @@ export interface User {
   email: string;
   role: string;
   avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+  last_login?: string;
 }
 
 // API Response Types
