@@ -9,13 +9,24 @@ export async function login(formData: FormData) {
     email: formData.get("email") as string,
     password: formData.get("password") as string,
   };
-  const { data: user, error } = await supabase.auth.signInWithPassword(data);
-  console.log("Auth data:", user);
-  console.log("Auth error:", error);
+  const { data: authData, error } = await supabase.auth.signInWithPassword(
+    data
+  );
+
   if (error) {
     // redirect("/error");
     return { error: error.message };
+  } else if (authData.user) {
+    const { error: userError } = await supabase
+      .from("users")
+      .update({ last_login: new Date() })
+      .eq("id", authData.user.id);
+    if (userError) {
+      console.error("Error updating last login:", userError);
+      return { error: userError.message };
+    }
   }
+
   revalidatePath("/", "layout");
   redirect("/");
 }

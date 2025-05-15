@@ -22,7 +22,7 @@ export interface ActivityLog {
   id?: string;
   userId: string;
   action: string;
-  resourceType: string;
+  activityType: string;
   resourceId?: string;
   details?: Record<string, unknown>;
   ipAddress?: string;

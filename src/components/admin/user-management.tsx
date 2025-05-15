@@ -38,16 +38,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AddUserDialog } from "@/components/admin/add-user-dialog";
 import { toast } from "sonner";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatarUrl?: string;
-  createdAt: string;
-  lastLogin?: string;
-}
+import { User } from "@/types";
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -61,7 +52,7 @@ export function UserManagement() {
   useEffect(() => {
     fetchUsers();
   }, [page]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
@@ -76,7 +67,7 @@ export function UserManagement() {
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
-        setTotalPages(data.totalPages);
+        setTotalPages(data.pagination.pages);
       } else {
         toast.error("Error", {
           description: "Failed to fetch users",
@@ -100,7 +91,7 @@ export function UserManagement() {
 
   const handleRoleChange = async (userId: string, role: string) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/role`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -222,9 +213,9 @@ export function UserManagement() {
                     <TableRow key={user.id}>
                       <TableCell className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
-                          {user.avatarUrl ? (
+                          {user.avatar_url ? (
                             <AvatarImage
-                              src={user.avatarUrl || "/placeholder.svg"}
+                              src={user.avatar_url || "/placeholder.svg"}
                               alt={user.name}
                             />
                           ) : (
@@ -251,11 +242,11 @@ export function UserManagement() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {format(new Date(user.createdAt), "PP")}
+                        {format(new Date(user.created_at), "PP")}
                       </TableCell>
                       <TableCell>
-                        {user.lastLogin
-                          ? format(new Date(user.lastLogin), "PP")
+                        {user.last_login
+                          ? format(new Date(user.last_login), "PP")
                           : "Never"}
                       </TableCell>
                       <TableCell>

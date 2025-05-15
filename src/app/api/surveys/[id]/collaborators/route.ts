@@ -220,7 +220,7 @@ export async function POST(
     await supabaseAdmin.from("activity_logs").insert({
       user_id: currentUser.id,
       action: "add_collaborator",
-      resource_type: "survey",
+      activity_type: "survey",
       resource_id: id,
       details: {
         collaborator_id: userData.id,

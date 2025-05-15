@@ -73,16 +73,17 @@ export async function GET(request: Request) {
 
     // Get device stats
     const { data: deviceData, error: deviceError } = await supabaseAdmin.rpc(
-      "execute_sql",
+      "_exec_sql",
       {
-        sql: `
+        query: `
             SELECT device_type, COUNT(*) as count
             FROM visitors
-            WHERE visit_date >= $1 AND visit_date <= $2
+            WHERE visit_date >= '${timeRange}' AND visit_date <= '${
+          endDate || now.toISOString()
+        }'
             GROUP BY device_type
             ORDER BY count DESC
         `,
-        args: [timeRange, endDate || now.toISOString()],
       }
     );
 
@@ -92,17 +93,18 @@ export async function GET(request: Request) {
 
     // Get referrer stats
     const { data: referrerData, error: referrerError } =
-      await supabaseAdmin.rpc("execute_sql", {
-        sql: `
-            SELECT referrer, COUNT(*) as count
-            FROM visitors
-            WHERE visit_date >= $1 AND visit_date <= $2
-            AND referrer IS NOT NULL
-            GROUP BY referrer
-            ORDER BY count DESC
-            LIMIT 10
-        `,
-        args: [timeRange, endDate || now.toISOString()],
+      await supabaseAdmin.rpc("_exec_sql", {
+        query: `
+        SELECT referrer, COUNT(*) as count
+        FROM visitors
+        WHERE visit_date >= '${timeRange}' AND visit_date <= '${
+          endDate || now.toISOString()
+        }'
+        AND referrer IS NOT NULL
+        GROUP BY referrer
+        ORDER BY count DESC
+        LIMIT 10
+    `,
       });
 
     if (referrerError) {
@@ -110,9 +112,9 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      visitors: visitorData || [],
-      devices: deviceData || [],
-      referrers: referrerData || [],
+      visitorsByDay: visitorData || [],
+      visitorsByDevice: deviceData || [],
+      visitorsByReferrer: referrerData || [],
     });
   } catch (error) {
     console.error("Error in visitors API:", error);

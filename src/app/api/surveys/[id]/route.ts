@@ -208,7 +208,7 @@ export async function PUT(request: NextRequest) {
     await supabaseAdmin.from("activity_logs").insert({
       user_id: userId,
       action: "update_survey",
-      resource_type: "survey",
+      activity_type: "survey",
       resource_id: surveyId,
       details: {
         updated_as: isOwner ? "owner" : "collaborator",
@@ -300,7 +300,7 @@ export async function DELETE(request: NextRequest) {
     await supabaseAdmin.from("activity_logs").insert({
       user_id: userId,
       action: "delete_survey",
-      resource_type: "survey",
+      activity_type: "survey",
       resource_id: surveyId,
       details: {
         deleted_as: "owner",

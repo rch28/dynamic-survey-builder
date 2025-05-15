@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     await supabaseAdmin.from("activity_logs").insert({
       user_id: user.id,
       action: "update_avatar",
-      resource_type: "user",
+      activity_type: "user",
       resource_id: user.id,
       details: { updated_fields: ["avatar_url"] },
     });

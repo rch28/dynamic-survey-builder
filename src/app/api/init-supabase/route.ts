@@ -114,7 +114,7 @@ export async function GET() {
           id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
           user_id UUID REFERENCES users(id),
           action TEXT NOT NULL,
-          resource_type TEXT NOT NULL,
+          activity_type TEXT NOT NULL,
           resource_id UUID,
           details JSONB DEFAULT '{}'::jsonb,
           ip_address TEXT,

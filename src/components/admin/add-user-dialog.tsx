@@ -51,12 +51,13 @@ export function AddUserDialog({
 
     try {
       setIsSubmitting(true);
+      const securePassword = crypto.randomUUID();
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, role }),
+        body: JSON.stringify({ name, email, role, password: securePassword }),
       });
 
       if (response.ok) {

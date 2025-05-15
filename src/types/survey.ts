@@ -134,7 +134,7 @@ export const activityLogSchema = z.object({
   id: z.string().optional(),
   userId: z.string().optional(),
   action: z.string(),
-  resourceType: z.string(),
+  activityType: z.string(),
   resourceId: z.string().optional(),
   details: z.record(z.string(), z.any()).optional(),
   ipAddress: z.string().optional(),

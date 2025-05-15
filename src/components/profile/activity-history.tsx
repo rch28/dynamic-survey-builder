@@ -84,7 +84,7 @@ export function ActivityHistory() {
                       {getActivityDescription(activity)}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {activity.resourceType}{" "}
+                      {activity.activityType}{" "}
                       {activity.resourceId
                         ? `#${activity.resourceId.substring(0, 8)}`
                         : ""}

@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       .insert({
         name,
         email,
-        password_hash: password, // Note: In a real app, you would hash the password
+        password: password, // Note: In a real app, you would hash the password
         role: role || "user",
         created_at: new Date().toISOString(),
       })

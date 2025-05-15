@@ -219,13 +219,13 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
       <header className="border-b">
         <div className="p-8 space-y-6 py-4 ">
           <div className="flex items-center justify-between">
-            <div className="">
+            <div className="hidden">
               <h1 className="text-2xl font-bold">Survey Builder</h1>
               <p className="text-muted-foreground">
                 Create and manage your surveys
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={exportSurvey}>
                 <Download className="mr-2 h-4 w-4" />
                 Export
@@ -366,7 +366,7 @@ const SurveyBuilder = ({ initialSurvey = null }: SurveyBuilderProps) => {
               <Input
                 value={survey.title}
                 onChange={(e) => updateSurveyTitle(e.target.value)}
-                className="text-xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary/20 rounded px-2 py-1"
+                className=" text-xs lg:text-xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary/20 rounded px-2 py-1"
               />
             </form>
           </Form>
