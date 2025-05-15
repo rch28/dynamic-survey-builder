@@ -1,5 +1,5 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
-import { isAdmin } from "@/lib/auth/isAdmin";
+import { isAdmin } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 

@@ -1,8 +1,8 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
 import { NextResponse } from "next/server";
 import { Survey } from "@/types/survey";
-import { isAdmin } from "@/lib/auth/isAdmin";
 import { createClient } from "@/utils/supabase/server";
+import { isAdmin } from "@/lib/auth";
 
 interface PopularSurvey {
   survey_id: string;

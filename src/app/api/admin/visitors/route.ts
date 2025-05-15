@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getServerSession } from "@/lib/auth/getServerSession";
-import { isAdmin } from "@/lib/auth/isAdmin";
+import { isAdmin } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {

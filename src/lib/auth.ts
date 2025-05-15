@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
+
 import bcrypt from "bcryptjs";
-import { supabaseAdmin } from "./supabase";
+
 import { createErrorResponse, ErrorType } from "./api-utils";
 import { User } from "@/types";
 import { getServerSession } from "./auth/getServerSession";
