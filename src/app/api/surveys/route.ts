@@ -1,37 +1,54 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { supabaseAdmin } from "@/lib/supabase";
 
 import { getServerSession } from "@/lib/auth/getServerSession";
+import { checkDatabaseConnection, logActivity } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import {
+  formatValidationErrors,
+  paginationSchema,
+  validateRequest,
+} from "@/lib/validation";
+import { surveySchema } from "@/types/survey";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
-    const user = await getServerSession();
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    // Log the API request
+    logApiRequest("GET", "/api/surveys", user.id);
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
+    const { searchParams } = new URL(request.url);
+    const validatedParams = paginationSchema.parse({
+      page: searchParams.get("page") || "1",
+      limit: searchParams.get("limit") || "10",
+    });
+    const { page, limit } = validatedParams;
+    const offset = (page - 1) * limit;
     // Fetch all surveys where the user is the owner
     const { data: ownedSurveys, error: ownedError } = await supabaseAdmin
       .from("surveys")
       .select("*")
       .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (ownedError) {
       console.error("Error fetching owned surveys:", ownedError);
-      return NextResponse.json(
-        { error: "Failed to fetch surveys" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to fetch surveys",
+        ownedError
       );
     }
     // Fetch all surveys where the user is a collaborator
@@ -47,9 +64,10 @@ export async function GET() {
 
     if (collabError) {
       console.error("Error fetching collaborations:", collabError);
-      return NextResponse.json(
-        { error: "Failed to fetch surveys" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to fetch collaborations",
+        collabError
       );
     }
 
@@ -68,41 +86,47 @@ export async function GET() {
       ...ownedSurveys.map((survey) => ({ ...survey, owned: true })),
       ...collaborativeSurveys,
     ];
-
-    return NextResponse.json({ surveys: allSurveys || [] }, { status: 200 });
+    const totalCount = ownedSurveys.length + collaborations.length;
+    return createSuccessResponse({
+      surveys: allSurveys,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: totalCount || 0,
+        pages: Math.ceil(totalCount / limit),
+      },
+    });
   } catch (error) {
     console.error("Error in GET /api/surveys:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch surveys" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to fetch surveys",
+      error
     );
   }
 }
 // POST /api/surveys
 export async function POST(request: Request) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
-    const user = await getServerSession();
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    logApiRequest("POST", "/api/surveys", user.id);
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
+    const body = await request.json();
+    const validation = await validateRequest(surveySchema, body);
 
-    const surveyData = await request.json();
-    if (!surveyData.title || !surveyData.questions) {
-      return NextResponse.json(
-        { error: "Title and questions are required" },
-        { status: 400 }
+    if (!validation.success) {
+      return createErrorResponse(
+        ErrorType.VALIDATION_ERROR,
+        "Invalid survey data",
+        formatValidationErrors(validation.error)
       );
     }
+    const surveyData = validation.data;
 
     const newSurvey = {
       id: uuidv4(),
@@ -120,33 +144,23 @@ export async function POST(request: Request) {
       .select()
       .single();
     if (error) {
-      return NextResponse.json(
-        { error: "Failed to create survey", details: error.message },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to create survey"
       );
     }
 
-    // ACTIVITY LOG
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: user.id,
-      action: "create_survey",
-      activity_type: "survey",
-      resource_id: data.id,
-      details: {
-        updated_field: {
-          title: surveyData.title,
-          questions: surveyData.questions,
-          description: surveyData.description,
-          metadata: surveyData.metadata,
-        },
-      },
+    // Log activity
+    await logActivity(user.id, "CREATE", "survey", data.id, {
+      title: data.title,
     });
-    return NextResponse.json({ survey: data }, { status: 201 });
+
+    return createSuccessResponse({ survey: data }, 201);
   } catch (error) {
     console.error("Error in POST /api/surveys:", error);
-    return NextResponse.json(
-      { error: "Failed to create survey" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to create survey"
     );
   }
 }
