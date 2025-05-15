@@ -1,37 +1,69 @@
-import { NextResponse } from "next/server";
+import { checkDatabaseConnection, logActivity } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
 
-import { supabaseAdmin } from "@/lib/supabase";
-import { getServerSession } from "@/lib/auth/getServerSession";
+// Maximum file size (2MB)
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
+// Allowed file types
+const ALLOWED_FILE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+];
 export async function POST(request: Request) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
-    const user = await getServerSession();
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    logApiRequest("POST", "/api/users/avatar", user.id);
+
     const formData = await request.formData();
     const file = formData.get("avatar") as File;
 
     if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      return createErrorResponse(ErrorType.BAD_REQUEST, "No file provided");
     }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        `File size exceeds the maximum limit of ${
+          MAX_FILE_SIZE / (1024 * 1024)
+        }MB`
+      );
+    }
+
+    // Validate file type
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        `File type not allowed. Allowed types: ${ALLOWED_FILE_TYPES.join(", ")}`
+      );
+    }
+    // Get the current avatar URL to delete later
+    const { data: currentUser, error: getUserError } = await dbCheck.client
+      .from("users")
+      .select("id,avatar_url")
+      .eq("id", user.id)
+      .single();
 
     // Upload the file to Supabase Storage
     const fileExt = file.name.split(".").pop();
     const fileName = `${user.id}-${Date.now()}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
 
-    const { error: uploadError } = await supabaseAdmin.storage
+    const { error: uploadError } = await dbCheck.client.storage
       .from("avatars")
       .upload(filePath, file, {
         cacheControl: "3600",
@@ -40,73 +72,81 @@ export async function POST(request: Request) {
 
     if (uploadError) {
       console.error("Storage error:", uploadError);
-      return NextResponse.json(
-        { error: "Failed to upload avatar" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to upload avatar",
+        uploadError
       );
     }
 
     // Get public URL
-    const { data: urlData } = supabaseAdmin.storage
+    const { data: urlData } = dbCheck.client.storage
       .from("avatars")
       .getPublicUrl(fileName);
 
     const avatarUrl = urlData.publicUrl;
 
     // Update auth user metadata
-    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+    const { error: authError } = await dbCheck.client.auth.admin.updateUserById(
       user.id,
       {
         user_metadata: {
           avatar_url: avatarUrl,
-          name: user.user_metadata?.name || "",
+          name: user.name,
         },
       }
     );
     if (authError) {
       console.error("Auth error:", authError);
-      return NextResponse.json(
-        { error: "Failed to update user metadata" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to update user metadata",
+        authError
       );
     }
-    // Check if user exists in users table
-    const { data: existingUser } = await supabaseAdmin
-      .from("users")
-      .select("id")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (!existingUser) {
+    if (currentUser?.avatar_url) {
+      try {
+        const oldPath = currentUser.avatar_url.split("/").pop();
+        if (oldPath) {
+          await dbCheck.client.storage
+            .from("user-avatars")
+            .remove([`avatars/${oldPath}`]);
+        }
+      } catch (deleteError) {
+        console.error("Error deleting old avatar:", deleteError);
+      }
+    }
+
+    if (!currentUser) {
       // Create user record if it doesn't exist
-      await supabaseAdmin.from("users").insert({
+      await dbCheck.client.from("users").insert({
         id: user.id,
-        name: user.user_metadata?.name || "",
+        name: user.name || "",
         email: user.email || "",
         avatar_url: avatarUrl,
       });
     } else {
       // Update existing user
-      await supabaseAdmin
+      await dbCheck.client
         .from("users")
         .update({ avatar_url: avatarUrl })
         .eq("id", user.id);
     }
 
     // Log the activity
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: user.id,
-      action: "update_avatar",
-      activity_type: "user",
-      resource_id: user.id,
-      details: { updated_fields: ["avatar_url"] },
+    await logActivity(user.id, "update_avatar", "user", user.id, {
+      updated_fields: ["avatar_url"],
     });
 
-    return NextResponse.json({ avatarUrl }, { status: 200 });
+    return createSuccessResponse({
+      avatarUrl,
+    });
   } catch (error) {
     console.error("Avatar upload error:", error);
-    return NextResponse.json(
-      { error: "Failed to upload avatar" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to upload avatar",
+      error
     );
   }
 }

@@ -37,7 +37,6 @@ export const collaboratorRoleSchema = z.enum(["viewer", "editor", "owner"]);
 // User profile schemas
 export const updateProfileSchema = z.object({
   name: nameSchema,
-  avatarUrl: z.string().optional(),
 });
 
 // Admin schemas

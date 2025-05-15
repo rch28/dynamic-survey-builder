@@ -1,5 +1,3 @@
-import { supabaseAdmin } from "@/lib/supabase";
-import { getServerSession } from "@/lib/auth/getServerSession";
 import type { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import {
@@ -79,7 +77,7 @@ export async function PUT(request: Request) {
         formatValidationErrors(validation.error)
       );
     }
-    const { name, avatarUrl } = validation.data;
+    const { name } = validation.data;
 
     // 1. Update auth user metadata
     const { error: authError } = await dbCheck.client.auth.admin.updateUserById(
@@ -87,7 +85,6 @@ export async function PUT(request: Request) {
       {
         user_metadata: {
           name,
-          avatar_url: avatarUrl || "",
         },
       }
     );
@@ -122,7 +119,6 @@ export async function PUT(request: Request) {
           .update({
             id: user.id, // Update to current auth ID
             name: name,
-            avatar_url: avatarUrl || "",
           })
           .eq("email", user.email)
           .select("id, name, email, avatar_url")
@@ -146,7 +142,7 @@ export async function PUT(request: Request) {
             id: user.id,
             name: name,
             email: user.email || "",
-            avatar_url: avatarUrl || "",
+
             updated_at: new Date().toISOString(),
           })
           .select("id, name, email, avatar_url")
@@ -169,7 +165,7 @@ export async function PUT(request: Request) {
         .from("users")
         .update({
           name: name,
-          avatar_url: avatarUrl || "",
+
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
@@ -189,7 +185,7 @@ export async function PUT(request: Request) {
     }
 
     await logActivity(user.id, "UPDATE_PROFILE", "user", user.id, {
-      updated_fields: avatarUrl ? ["name", "avatar_url"] : ["name"],
+      updated_fields: ["name"],
     });
 
     return createSuccessResponse({ user: userData });
