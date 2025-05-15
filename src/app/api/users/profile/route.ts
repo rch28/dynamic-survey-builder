@@ -21,9 +21,10 @@ export async function GET(request: NextRequest) {
     logApiRequest("GET", "/api/users/profile", user.id);
     const dbCheck = checkDatabaseConnection();
     if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
 
     // Fetch user profile
-    const { data: profile, error } = await dbCheck.client
+    const { data: profile, error } = await supabaseAdmin
       .from("users")
       .select("id, name, email, avatar_url, role, created_at, last_login")
       .eq("id", user.id)
@@ -64,6 +65,9 @@ export async function PUT(request: Request) {
   try {
     const dbCheck = checkDatabaseConnection();
     if (!dbCheck.success) return dbCheck.error;
+
+    const supabaseAdmin = dbCheck.client;
+
     const authResult = await requireAuth(request);
     if (!authResult.success) return authResult.error;
     const user = authResult.user;
@@ -80,7 +84,7 @@ export async function PUT(request: Request) {
     const { name } = validation.data;
 
     // 1. Update auth user metadata
-    const { error: authError } = await dbCheck.client.auth.admin.updateUserById(
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       user.id,
       {
         user_metadata: {
@@ -99,7 +103,7 @@ export async function PUT(request: Request) {
     let userData;
 
     // Check if user exists by EITHER id OR email
-    const { data: existingUserById } = await dbCheck.client
+    const { data: existingUserById } = await supabaseAdmin
       .from("users")
       .select("id, email")
       .eq("id", user.id)
@@ -107,14 +111,14 @@ export async function PUT(request: Request) {
 
     // If no user found by ID, check by email
     if (!existingUserById && user.email) {
-      const { data: existingUserByEmail } = await dbCheck.client
+      const { data: existingUserByEmail } = await supabaseAdmin
         .from("users")
         .select("id, email")
         .eq("email", user.email)
         .maybeSingle();
 
       if (existingUserByEmail) {
-        const { data: updatedUser, error: updateError } = await dbCheck.client
+        const { data: updatedUser, error: updateError } = await supabaseAdmin
           .from("users")
           .update({
             id: user.id, // Update to current auth ID
@@ -136,7 +140,7 @@ export async function PUT(request: Request) {
         userData = updatedUser;
       } else {
         // No user exists with this ID or email, create a new one
-        const { data: newUser, error: insertError } = await dbCheck.client
+        const { data: newUser, error: insertError } = await supabaseAdmin
           .from("users")
           .insert({
             id: user.id,
@@ -161,7 +165,7 @@ export async function PUT(request: Request) {
       }
     } else {
       // User exists by ID, update it
-      const { data: updatedUser, error: updateError } = await dbCheck.client
+      const { data: updatedUser, error: updateError } = await supabaseAdmin
         .from("users")
         .update({
           name: name,

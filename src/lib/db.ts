@@ -32,9 +32,9 @@ export function checkDatabaseConnection():
 export async function checkSurveyOwnership(surveyId: string, userId: string) {
   const dbCheck = checkDatabaseConnection();
   if (!dbCheck.success) return dbCheck;
-
+  const supabaseAdmin = dbCheck.client;
   try {
-    const { data, error } = await dbCheck.client
+    const { data, error } = await supabaseAdmin
       .from("surveys")
       .select("id")
       .eq("id", surveyId)
@@ -72,10 +72,11 @@ export async function checkSurveyAccess(
 ) {
   const dbCheck = checkDatabaseConnection();
   if (!dbCheck.success) return dbCheck;
+  const supabaseAdmin = dbCheck.client;
 
   try {
     // First check if user is the owner
-    const { data: survey, error: surveyError } = await dbCheck.client
+    const { data: survey } = await supabaseAdmin
       .from("surveys")
       .select("id")
       .eq("id", surveyId)
@@ -87,13 +88,12 @@ export async function checkSurveyAccess(
     }
 
     // If not the owner, check if they're a collaborator
-    const { data: collaborator, error: collaboratorError } =
-      await dbCheck.client
-        .from("collaborators")
-        .select("role")
-        .eq("survey_id", surveyId)
-        .eq("user_id", userId)
-        .single();
+    const { data: collaborator, error: collaboratorError } = await supabaseAdmin
+      .from("collaborators")
+      .select("role")
+      .eq("survey_id", surveyId)
+      .eq("user_id", userId)
+      .single();
 
     if (collaboratorError || !collaborator) {
       return {
@@ -139,7 +139,7 @@ export async function logActivity(
   action: string,
   resourceType: string,
   resourceId: string,
-  details?: any
+  details?: Record<string, any>
 ) {
   if (!supabaseAdmin) return;
 

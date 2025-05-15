@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 
-import { getServerSession } from "@/lib/auth/getServerSession";
 import { checkDatabaseConnection, logActivity } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import {

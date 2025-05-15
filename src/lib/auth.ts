@@ -61,7 +61,7 @@ export async function requireAuth(
   request: Request
 ): Promise<AuthSuccess | AuthFailure> {
   const user = await getCurrentUser();
-
+  console.log("request", request);
   if (!user) {
     return {
       success: false,

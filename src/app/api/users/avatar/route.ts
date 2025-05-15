@@ -21,6 +21,7 @@ export async function POST(request: Request) {
   try {
     const dbCheck = checkDatabaseConnection();
     if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
 
     const authResult = await requireAuth(request);
     if (!authResult.success) return authResult.error;
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
       );
     }
     // Get the current avatar URL to delete later
-    const { data: currentUser, error: getUserError } = await dbCheck.client
+    const { data: currentUser } = await supabaseAdmin
       .from("users")
       .select("id,avatar_url")
       .eq("id", user.id)
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     const fileName = `${user.id}-${Date.now()}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
 
-    const { error: uploadError } = await dbCheck.client.storage
+    const { error: uploadError } = await supabaseAdmin.storage
       .from("avatars")
       .upload(filePath, file, {
         cacheControl: "3600",
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
     const avatarUrl = urlData.publicUrl;
 
     // Update auth user metadata
-    const { error: authError } = await dbCheck.client.auth.admin.updateUserById(
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       user.id,
       {
         user_metadata: {
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
       try {
         const oldPath = currentUser.avatar_url.split("/").pop();
         if (oldPath) {
-          await dbCheck.client.storage
+          await supabaseAdmin.storage
             .from("user-avatars")
             .remove([`avatars/${oldPath}`]);
         }
@@ -119,7 +120,7 @@ export async function POST(request: Request) {
 
     if (!currentUser) {
       // Create user record if it doesn't exist
-      await dbCheck.client.from("users").insert({
+      await supabaseAdmin.from("users").insert({
         id: user.id,
         name: user.name || "",
         email: user.email || "",
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
       });
     } else {
       // Update existing user
-      await dbCheck.client
+      await supabaseAdmin
         .from("users")
         .update({ avatar_url: avatarUrl })
         .eq("id", user.id);
