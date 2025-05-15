@@ -94,7 +94,10 @@ export const surveyMetadataSchema = z.object({
 // Survey Schema
 export const surveySchema = z.object({
   id: z.string().optional(),
-  title: z.string().min(1, "Survey title is required"),
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(200, "Title cannot exceed 200 characters"),
   description: z.string().optional(),
   questions: z.array(questionSchema),
   metadata: surveyMetadataSchema.default({}),
