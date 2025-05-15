@@ -1,27 +1,31 @@
-import { NextResponse } from "next/server";
-
 import { supabaseAdmin } from "@/lib/supabase";
 import { getServerSession } from "@/lib/auth/getServerSession";
+import type { NextRequest } from "next/server";
+import { requireAuth } from "@/lib/auth";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import { checkDatabaseConnection, logActivity } from "@/lib/db";
+import {
+  formatValidationErrors,
+  updateProfileSchema,
+  validateRequest,
+} from "@/lib/validation";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
-    const user = await getServerSession();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    logApiRequest("GET", "/api/users/profile", user.id);
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
 
     // Fetch user profile
-    const { data: profile, error } = await supabaseAdmin
+    const { data: profile, error } = await dbCheck.client
       .from("users")
       .select("id, name, email, avatar_url, role, created_at, last_login")
       .eq("id", user.id)
@@ -29,9 +33,10 @@ export async function GET() {
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch user profile" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to fetch user profile",
+        error
       );
     }
 
@@ -46,58 +51,58 @@ export async function GET() {
       lastLogin: profile.last_login,
     };
 
-    return NextResponse.json({ user: formattedProfile }, { status: 200 });
+    return createSuccessResponse({ user: formattedProfile });
   } catch (error) {
     console.error("Get user profile error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch user profile" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to fetch user profile",
+      error
     );
   }
 }
 
 export async function PUT(request: Request) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    logApiRequest("PUT", "/api/users/profile", user.id);
+    const body = await request.json();
+    const validation = await validateRequest(updateProfileSchema, body);
+    if (!validation.success) {
+      return createErrorResponse(
+        ErrorType.VALIDATION_ERROR,
+        "Invalid profile data",
+        formatValidationErrors(validation.error)
       );
     }
-    const user = await getServerSession();
+    const { name, avatarUrl } = validation.data;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
-    const { name, avatarUrl } = await request.json();
-
-    if (!name) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
-    }
     // 1. Update auth user metadata
-    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+    const { error: authError } = await dbCheck.client.auth.admin.updateUserById(
       user.id,
       {
         user_metadata: {
           name,
-          avatar_url: avatarUrl || user.user_metadata?.avatar_url || "",
+          avatar_url: avatarUrl || "",
         },
       }
     );
     if (authError) {
-      console.error("Auth update error:", authError);
-      return NextResponse.json(
-        { error: "Failed to update authentication profile" },
-        { status: 500 }
+      console.error("Database Error:", authError);
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to update authentication profile",
+        authError
       );
     }
     let userData;
 
     // Check if user exists by EITHER id OR email
-    const { data: existingUserById } = await supabaseAdmin
+    const { data: existingUserById } = await dbCheck.client
       .from("users")
       .select("id, email")
       .eq("id", user.id)
@@ -105,21 +110,19 @@ export async function PUT(request: Request) {
 
     // If no user found by ID, check by email
     if (!existingUserById && user.email) {
-      const { data: existingUserByEmail } = await supabaseAdmin
+      const { data: existingUserByEmail } = await dbCheck.client
         .from("users")
         .select("id, email")
         .eq("email", user.email)
         .maybeSingle();
 
       if (existingUserByEmail) {
-        // User exists with this email but different ID
-        // Update the existing record to match the current auth user's ID
-        const { data: updatedUser, error: updateError } = await supabaseAdmin
+        const { data: updatedUser, error: updateError } = await dbCheck.client
           .from("users")
           .update({
             id: user.id, // Update to current auth ID
             name: name,
-            avatar_url: avatarUrl || user.user_metadata?.avatar_url || "",
+            avatar_url: avatarUrl || "",
           })
           .eq("email", user.email)
           .select("id, name, email, avatar_url")
@@ -127,22 +130,23 @@ export async function PUT(request: Request) {
 
         if (updateError) {
           console.error("Database update error:", updateError);
-          return NextResponse.json(
-            { error: "Failed to update user profile" },
-            { status: 500 }
+          return createErrorResponse(
+            ErrorType.INTERNAL_ERROR,
+            "Failed to update user profile",
+            updateError
           );
         }
 
         userData = updatedUser;
       } else {
         // No user exists with this ID or email, create a new one
-        const { data: newUser, error: insertError } = await supabaseAdmin
+        const { data: newUser, error: insertError } = await dbCheck.client
           .from("users")
           .insert({
             id: user.id,
             name: name,
             email: user.email || "",
-            avatar_url: avatarUrl || user.user_metadata?.avatar_url || "",
+            avatar_url: avatarUrl || "",
             updated_at: new Date().toISOString(),
           })
           .select("id, name, email, avatar_url")
@@ -150,9 +154,10 @@ export async function PUT(request: Request) {
 
         if (insertError) {
           console.error("Database insert error:", insertError);
-          return NextResponse.json(
-            { error: "Failed to create user profile" },
-            { status: 500 }
+          return createErrorResponse(
+            ErrorType.INTERNAL_ERROR,
+            "Failed to create user profile",
+            insertError
           );
         }
 
@@ -160,11 +165,11 @@ export async function PUT(request: Request) {
       }
     } else {
       // User exists by ID, update it
-      const { data: updatedUser, error: updateError } = await supabaseAdmin
+      const { data: updatedUser, error: updateError } = await dbCheck.client
         .from("users")
         .update({
           name: name,
-          avatar_url: avatarUrl || user.user_metadata?.avatar_url || "",
+          avatar_url: avatarUrl || "",
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
@@ -173,32 +178,27 @@ export async function PUT(request: Request) {
 
       if (updateError) {
         console.error("Database update error:", updateError);
-        return NextResponse.json(
-          { error: "Failed to update user profile" },
-          { status: 500 }
+        return createErrorResponse(
+          ErrorType.INTERNAL_ERROR,
+          "Failed to update user profile",
+          updateError
         );
       }
 
       userData = updatedUser;
     }
 
-    // Log the activity
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: user.id,
-      action: "update_profile",
-      activity_type: "user",
-      resource_id: user.id,
-      details: {
-        updated_fields: avatarUrl ? ["name", "avatar_url"] : ["name"],
-      },
+    await logActivity(user.id, "UPDATE_PROFILE", "user", user.id, {
+      updated_fields: avatarUrl ? ["name", "avatar_url"] : ["name"],
     });
 
-    return NextResponse.json({ user: userData }, { status: 200 });
+    return createSuccessResponse({ user: userData });
   } catch (error) {
     console.error("Update user profile error:", error);
-    return NextResponse.json(
-      { error: "Failed to update user profile" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to update user profile",
+      error
     );
   }
 }

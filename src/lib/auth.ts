@@ -1,10 +1,28 @@
-
 import bcrypt from "bcryptjs";
 
-import { createErrorResponse, ErrorType } from "./api-utils";
-import { User } from "@/types";
+import { ApiError, createErrorResponse, ErrorType } from "./api-utils";
 import { getServerSession } from "./auth/getServerSession";
+import { NextResponse } from "next/server";
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role?: string;
+  avatarUrl?: string;
+}
+
+interface AuthSuccess {
+  success: true;
+  user: User;
+  error?: never; // error doesn't exist in this case
+}
+
+interface AuthFailure {
+  success: false;
+  error: NextResponse<ApiError<unknown>>;
+  user?: never; // user doesn't exist in this case
+}
 // Hash a password
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
@@ -30,9 +48,7 @@ export async function getCurrentUser(): Promise<User | null> {
       name: user.user_metadata.name,
       email: user.user_metadata.email,
       role: user.user_metadata.role,
-      avatar_url: user.user_metadata.avatar_url,
-      created_at: user.user_metadata.created_at,
-      updated_at: user.user_metadata.updated_at,
+      avatarUrl: user.user_metadata.avatar_url,
     };
   } catch (error) {
     console.error("Error getting current user:", error);
@@ -41,7 +57,9 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 // Check if a user is authenticated
-export async function requireAuth(request: Request) {
+export async function requireAuth(
+  request: Request
+): Promise<AuthSuccess | AuthFailure> {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -70,7 +88,9 @@ export async function isAdmin() {
 }
 
 // Require admin privileges
-export async function requireAdmin(request: Request) {
+export async function requireAdmin(
+  request: Request
+): Promise<AuthSuccess | AuthFailure> {
   const authResult = await requireAuth(request);
 
   if (!authResult.success) {
