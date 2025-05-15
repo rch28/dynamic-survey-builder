@@ -78,8 +78,8 @@ A modern, full-featured survey creation and management platform built with Next.
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/survey-builder.git
-cd survey-builder
+git clone git@github.com:rch28/dynamic-survey-builder.git
+cd dynamic-survey-builder
 bun install
 
 ```
