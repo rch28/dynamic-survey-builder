@@ -211,7 +211,7 @@ export async function DELETE(
     }
 
     const authResult = await requireAuth(request);
-    if (authResult.error) return authResult;
+    if (!authResult.success) return authResult.error;
     const user = authResult.user;
     logApiRequest("DELETE", "/api/surveys/[id]", user.id);
     // Check if user is the owner (only owners can delete surveys)
