@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     }
 
     // Get public URL
-    const { data: urlData } = dbCheck.client.storage
+    const { data: urlData } = supabaseAdmin.storage
       .from("avatars")
       .getPublicUrl(fileName);
 
