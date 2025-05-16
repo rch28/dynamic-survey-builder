@@ -1,32 +1,30 @@
-import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getServerSession } from "@/lib/auth/getServerSession";
-import { isAdmin } from "@/lib/auth";
+import { isAdmin, requireAdmin } from "@/lib/auth";
+import { checkDatabaseConnection } from "@/lib/db";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Check if Supabase is initialized
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
-    // Get the current user from cookies
-    const user = await getServerSession();
+    // Check admin privileges
+    const adminResult = await requireAdmin(request);
+    if (!adminResult.success) return adminResult.error;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = adminResult.user;
+    logApiRequest("GET", "/api/admin/visitors", user.id);
 
-    // Verify admin status
-    const adminCheck = await isAdmin();
-    if (!adminCheck) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+    // Check database connection
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
     // Parse query parameters
-    const { searchParams } = new URL(request.url);
+    const searchParams = new URL(request.url).searchParams;
     const period = searchParams.get("period") || "7days"; // 24h, 7days, 30days, custom
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -55,45 +53,31 @@ export async function GET(request: Request) {
       timeRange = lastWeek.toISOString();
     }
 
-    // Get visitor stats
-    const { data: visitorData, error: visitorError } = await supabaseAdmin
-      .from("visitors")
-      .select("*")
-      .gte("visit_date", timeRange)
-      .lte("visit_date", endDate || now.toISOString())
-      .order("visit_date", { ascending: true });
+    // Use Promise.all to run queries in parallel
+    const [visitorResult, deviceResult, referrerResult] = await Promise.all([
+      // Get visitor stats
+      supabaseAdmin
+        .from("visitors")
+        .select("*")
+        .gte("visit_date", timeRange)
+        .lte("visit_date", endDate || now.toISOString())
+        .order("visit_date", { ascending: true }),
 
-    if (visitorError) {
-      console.error("Error fetching visitor stats:", visitorError);
-      return NextResponse.json(
-        { error: "Failed to fetch visitor stats" },
-        { status: 500 }
-      );
-    }
-
-    // Get device stats
-    const { data: deviceData, error: deviceError } = await supabaseAdmin.rpc(
-      "_exec_sql",
-      {
+      // Get device stats
+      supabaseAdmin.rpc("_exec_sql", {
         query: `
-            SELECT device_type, COUNT(*) as count
-            FROM visitors
-            WHERE visit_date >= '${timeRange}' AND visit_date <= '${
+              SELECT device_type, COUNT(*) as count
+              FROM visitors
+              WHERE visit_date >= '${timeRange}' AND visit_date <= '${
           endDate || now.toISOString()
         }'
-            GROUP BY device_type
-            ORDER BY count DESC
-        `,
-      }
-    );
+              GROUP BY device_type
+              ORDER BY count DESC
+          `,
+      }),
 
-    if (deviceError) {
-      console.error("Error fetching device stats:", deviceError);
-    }
-
-    // Get referrer stats
-    const { data: referrerData, error: referrerError } =
-      await supabaseAdmin.rpc("_exec_sql", {
+      // Get referrer stats
+      supabaseAdmin.rpc("_exec_sql", {
         query: `
         SELECT referrer, COUNT(*) as count
         FROM visitors
@@ -105,22 +89,28 @@ export async function GET(request: Request) {
         ORDER BY count DESC
         LIMIT 10
     `,
-      });
+      }),
+    ]);
 
-    if (referrerError) {
-      console.error("Error fetching referrer stats:", referrerError);
+    // Handle errors
+    if (visitorResult.error) {
+      console.error("Error fetching visitor stats:", visitorResult.error);
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to fetch visitor stats"
+      );
     }
 
-    return NextResponse.json({
-      visitorsByDay: visitorData || [],
-      visitorsByDevice: deviceData || [],
-      visitorsByReferrer: referrerData || [],
+    return createSuccessResponse({
+      visitors: visitorResult.data || [],
+      devices: deviceResult.data || [],
+      referrers: referrerResult.data || [],
     });
   } catch (error) {
     console.error("Error in visitors API:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to fetch visitor data"
     );
   }
 }

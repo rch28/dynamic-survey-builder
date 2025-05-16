@@ -1,37 +1,46 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getServerSession } from "@/lib/auth/getServerSession";
-import { isAdmin } from "@/lib/auth";
+import type { NextRequest } from "next/server";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import {
+  validateRequest,
+  createUserSchema,
+  paginationSchema,
+  formatValidationErrors,
+} from "@/lib/validation";
+import { requireAdmin, hashPassword } from "@/lib/auth";
+import { checkDatabaseConnection, logActivity } from "@/lib/db";
 
 // GET - List users with pagination and search
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Check if Supabase is initialized
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
-    const user = await getServerSession();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Check admin privileges
+    const adminResult = await requireAdmin(request);
+    if (!adminResult.success) return adminResult.error;
 
-    // Verify admin status
-    const adminCheck = await isAdmin();
-    if (!adminCheck) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const user = adminResult.user;
+    logApiRequest("GET", "/api/admin/users", user.id);
 
-    // Parse query parameters for pagination and search
-    const { searchParams } = new URL(request.url);
-    const page = Number.parseInt(searchParams.get("page") || "1");
-    const limit = Number.parseInt(searchParams.get("limit") || "10");
+    // Check database connection
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+
+    // Parse query parameters
+    const searchParams = new URL(request.url).searchParams;
+
+    const validatedParams = paginationSchema.parse({
+      page: searchParams.get("page") || "1",
+      limit: searchParams.get("limit") || "10",
+    });
+    const { page, limit } = validatedParams;
+    const offset = (page - 1) * limit;
     const search = searchParams.get("search") || "";
 
     // Calculate offset
-    const offset = (page - 1) * limit;
 
     // Build query
     let query = supabaseAdmin
@@ -55,14 +64,14 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Error fetching users:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch users" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to fetch users"
       );
     }
 
-    return NextResponse.json({
-      users: data,
+    return createSuccessResponse({
+      users: data || [],
       pagination: {
         page,
         limit,
@@ -72,45 +81,40 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Error in users API:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to fetch users"
     );
   }
 }
 
 // POST - Create a new user
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Check if Supabase is initialized
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
+    // Check admin privileges
+    const adminResult = await requireAdmin(request);
+    if (!adminResult.success) return adminResult.error;
+
+    const user = adminResult.user;
+    logApiRequest("POST", "/api/admin/users", user.id);
+
+    // Check database connection
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = await validateRequest(createUserSchema, body);
+
+    if (!validation.success) {
+      return createErrorResponse(
+        ErrorType.VALIDATION_ERROR,
+        "Invalid user data",
+        formatValidationErrors(validation.error)
       );
     }
-    const user = await getServerSession();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Verify admin status
-    const adminCheck = await isAdmin();
-    if (!adminCheck) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Parse request body
-    const { name, email, password, role } = await request.json();
-
-    // Validate required fields
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: "Name, email, and password are required" },
-        { status: 400 }
-      );
-    }
+    const { name, email, password, role } = validation.data;
 
     // Check if email already exists
     const { data: existingUser, error: checkError } = await supabaseAdmin
@@ -121,53 +125,52 @@ export async function POST(request: Request) {
 
     if (checkError) {
       console.error("Error checking existing user:", checkError);
-      return NextResponse.json(
-        { error: "Failed to create user" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to create user"
       );
     }
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: "A user with this email already exists" },
-        { status: 400 }
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        "A user with this email already exists"
       );
     }
 
-    // Create user
+    // Hash the password
+    const hashedPassword = await hashPassword(password);
+
+    // Create user with transaction
     const { data, error } = await supabaseAdmin
       .from("users")
       .insert({
         name,
         email,
-        password: password, // Note: In a real app, you would hash the password
+        password_hash: hashedPassword,
         role: role || "user",
         created_at: new Date().toISOString(),
       })
-      .select();
+      .select("id, name, email, role, created_at")
+      .single();
 
     if (error) {
       console.error("Error creating user:", error);
-      return NextResponse.json(
-        { error: "Failed to create user" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to create user"
       );
     }
 
     // Log activity
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: user.id,
-      activity_type: "USER_CREATED",
-      details: `Created user: ${email}`,
-      created_at: new Date().toISOString(),
-    });
+    await logActivity(user.id, "CREATE_USER", "user", data.id, { email, role });
 
-    return NextResponse.json({ user: data[0] }, { status: 201 });
+    return createSuccessResponse({ user: data }, 201);
   } catch (error) {
     console.error("Error in create user API:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to create user"
     );
   }
 }
