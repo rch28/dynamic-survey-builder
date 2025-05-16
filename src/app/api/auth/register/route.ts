@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { v4 as uuidv4 } from "uuid";
-import { supabaseAdmin } from "@/lib/supabase";
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
     const { name, email, password } = validation.data;
 
     // Check if user already exists
-    const { data: existingUser, error: checkError } = await supabaseAdmin
+    const { data: existingUser } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("email", email)
