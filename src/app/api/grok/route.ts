@@ -8,9 +8,13 @@ import {
 import { validateRequest, formatValidationErrors } from "@/lib/validation";
 import { z } from "zod";
 import { requireAuth, checkRateLimit } from "@/lib/auth";
+import { Question } from "@/types/survey";
 
 // Simple in-memory cache for AI responses
-const responseCache: Record<string, { questions: any[]; expires: number }> = {};
+const responseCache: Record<
+  string,
+  { questions: Question[]; expires: number }
+> = {};
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 // Validation schema
@@ -231,6 +235,7 @@ function parseQuestionsFromContent(content: string) {
         }
       }
     } catch (initialError) {
+      console.error("Initial JSON parse failed:", initialError);
       // If direct parsing fails, try to extract a JSON array from the content
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {

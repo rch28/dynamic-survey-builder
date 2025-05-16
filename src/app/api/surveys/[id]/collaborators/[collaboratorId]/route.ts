@@ -42,7 +42,7 @@ export async function PATCH(
       uuidSchema.parse(id);
       uuidSchema.parse(collaboratorId);
     } catch (error) {
-      return createErrorResponse(ErrorType.BAD_REQUEST, "Invalid ID format");
+      return createErrorResponse(ErrorType.BAD_REQUEST, "Invalid ID format", error);
     }
     const ownershipCheck = await checkSurveyOwnership(id, user.id);
     if (!ownershipCheck.success) return ownershipCheck.error;
@@ -116,7 +116,7 @@ export async function DELETE(
       uuidSchema.parse(id);
       uuidSchema.parse(collaboratorId);
     } catch (error) {
-      return createErrorResponse(ErrorType.BAD_REQUEST, "Invalid ID format");
+      return createErrorResponse(ErrorType.BAD_REQUEST, "Invalid ID format", error);
     }
 
     // Check database connection

@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -7,7 +6,7 @@ import {
 } from "@/lib/api-utils";
 import { getCurrentUser } from "@/lib/auth";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     logApiRequest("GET", "/api/auth/session");
 

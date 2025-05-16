@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import {
   createErrorResponse,
@@ -9,7 +8,7 @@ import {
 import { getCurrentUser } from "@/lib/auth";
 import { logActivity } from "@/lib/db";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     logApiRequest("POST", "/api/auth/logout");
 

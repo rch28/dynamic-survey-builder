@@ -38,7 +38,7 @@ export async function GET(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid survey ID format"
+        "Invalid survey ID format",error
       );
     }
     const accessCheck = await checkSurveyAccess(id, user.id);
@@ -142,7 +142,7 @@ export async function POST(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid survey ID format"
+        "Invalid survey ID format",error
       );
     }
 

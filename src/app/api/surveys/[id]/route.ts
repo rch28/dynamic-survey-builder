@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 
-import { createClient } from "@/utils/supabase/server";
 import {
   checkDatabaseConnection,
   checkSurveyAccess,
@@ -35,7 +34,8 @@ export async function GET(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid survey ID format"
+        "Invalid survey ID format",
+        error
       );
     }
 
@@ -128,7 +128,8 @@ export async function PUT(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid survey ID format"
+        "Invalid survey ID format",
+        error
       );
     }
     const authResult = await requireAuth(request);
@@ -204,7 +205,8 @@ export async function DELETE(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid survey ID format"
+        "Invalid survey ID format",
+        error
       );
     }
 
@@ -217,7 +219,7 @@ export async function DELETE(
     if (!ownerShipCheck.success) return ownerShipCheck.error;
 
     // Get survey info before deletion for logging
-    const { data: survey, error: getError } = await supabaseAdmin
+    const { data: survey } = await supabaseAdmin
       .from("surveys")
       .select("title")
       .eq("id", id)
