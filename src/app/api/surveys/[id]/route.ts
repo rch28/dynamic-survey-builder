@@ -20,29 +20,6 @@ import {
 } from "@/lib/validation";
 import { surveySchema } from "@/types/survey";
 
-// Common function to get authenticated user ID to avoid repetition
-async function getUserId(): Promise<string | null> {
-  try {
-    const supabase = await createClient(); // Create client specific to this request context
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      console.error("Authentication error:", authError);
-      return null;
-    }
-    return user.id;
-  } catch (error) {
-    console.error("Error getting user:", error);
-    return null;
-  }
-}
-function getSurveyIdFromUrl(request: NextRequest): string | null {
-  const pathSegments = request.nextUrl.pathname.split("/");
-  return pathSegments[pathSegments.length - 1] || null;
-}
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
