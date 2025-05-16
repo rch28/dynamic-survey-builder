@@ -1,14 +1,67 @@
-import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import { validateRequest, formatValidationErrors } from "@/lib/validation";
+import { z } from "zod";
+import { requireAuth, checkRateLimit } from "@/lib/auth";
 
-export async function POST(request: Request) {
+// Simple in-memory cache for AI responses
+const responseCache: Record<string, { questions: any[]; expires: number }> = {};
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// Validation schema
+const promptSchema = z.object({
+  prompt: z
+    .string()
+    .min(1, "Prompt is required")
+    .max(500, "Prompt is too long"),
+});
+
+export async function POST(request: NextRequest) {
   try {
-    const { prompt } = await request.json();
+    // Check authentication
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
 
-    if (!prompt) {
-      return NextResponse.json(
-        { error: "Prompt is required" },
-        { status: 400 }
+    const user = authResult.user;
+    logApiRequest("POST", "/api/grok", user.id);
+
+    // Check rate limit (10 requests per minute)
+    if (!checkRateLimit(`grok:${user.id}`, 10, 60 * 1000)) {
+      return createErrorResponse(
+        ErrorType.RATE_LIMITED,
+        "Too many requests. Please try again later."
       );
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = await validateRequest(promptSchema, body);
+
+    if (!validation.success) {
+      return createErrorResponse(
+        ErrorType.VALIDATION_ERROR,
+        "Invalid prompt data",
+        formatValidationErrors(validation.error)
+      );
+    }
+
+    const { prompt } = validation.data;
+
+    // Check cache first
+    const cacheKey = `${user.id}:${prompt.toLowerCase().trim()}`;
+    if (
+      responseCache[cacheKey] &&
+      responseCache[cacheKey].expires > Date.now()
+    ) {
+      return createSuccessResponse({
+        questions: responseCache[cacheKey].questions,
+        source: "cache",
+      });
     }
 
     // Format the prompt to get survey question suggestions
@@ -31,6 +84,8 @@ export async function POST(request: Request) {
 
     // Check for Grok API key
     const xaiApiKey = process.env.XAI_API_KEY;
+    let questions = null;
+    let source = "unknown";
 
     if (xaiApiKey) {
       try {
@@ -73,8 +128,8 @@ export async function POST(request: Request) {
             data.choices[0].message
           ) {
             const content = data.choices[0].message.content;
-            const questions = parseQuestionsFromContent(content);
-            return NextResponse.json({ questions });
+            questions = parseQuestionsFromContent(content);
+            source = "grok";
           }
         } else {
           console.error("Grok API error:", await grokResponse.text());
@@ -85,66 +140,78 @@ export async function POST(request: Request) {
     }
 
     // Fallback to OpenAI if Grok fails
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    if (openaiApiKey) {
-      try {
-        console.log("Falling back to OpenAI API");
-        const openaiResponse = await fetch(
-          "https://api.openai.com/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${openaiApiKey}`,
-            },
-            body: JSON.stringify({
-              model: "gpt-3.5-turbo",
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are a helpful assistant that specializes in creating survey questions.",
-                },
-                {
-                  role: "user",
-                  content: formattedPrompt,
-                },
-              ],
-              temperature: 0.7,
-              max_tokens: 1024,
-            }),
-          }
-        );
+    if (!questions) {
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+      if (openaiApiKey) {
+        try {
+          console.log("Falling back to OpenAI API");
+          const openaiResponse = await fetch(
+            "https://api.openai.com/v1/chat/completions",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${openaiApiKey}`,
+              },
+              body: JSON.stringify({
+                model: "gpt-3.5-turbo",
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are a helpful assistant that specializes in creating survey questions.",
+                  },
+                  {
+                    role: "user",
+                    content: formattedPrompt,
+                  },
+                ],
+                temperature: 0.7,
+                max_tokens: 1024,
+              }),
+            }
+          );
 
-        if (openaiResponse.ok) {
-          const data = await openaiResponse.json();
-          if (
-            data &&
-            data.choices &&
-            data.choices.length > 0 &&
-            data.choices[0].message
-          ) {
-            const content = data.choices[0].message.content;
-            const questions = parseQuestionsFromContent(content);
-            return NextResponse.json({ questions });
+          if (openaiResponse.ok) {
+            const data = await openaiResponse.json();
+            if (
+              data &&
+              data.choices &&
+              data.choices.length > 0 &&
+              data.choices[0].message
+            ) {
+              const content = data.choices[0].message.content;
+              questions = parseQuestionsFromContent(content);
+              source = "openai";
+            }
+          } else {
+            console.error("OpenAI API error:", await openaiResponse.text());
           }
-        } else {
-          console.error("OpenAI API error:", await openaiResponse.text());
+        } catch (error) {
+          console.error("Error using OpenAI API:", error);
         }
-      } catch (error) {
-        console.error("Error using OpenAI API:", error);
       }
     }
 
     // If both APIs fail, generate mock questions
-    console.log("Using mock questions as fallback");
-    const mockQuestions = generateMockQuestions(prompt);
-    return NextResponse.json({ questions: mockQuestions });
+    if (!questions) {
+      console.log("Using mock questions as fallback");
+      questions = generateMockQuestions(prompt);
+      source = "mock";
+    }
+
+    // Cache the result
+    responseCache[cacheKey] = {
+      questions,
+      expires: Date.now() + CACHE_TTL,
+    };
+
+    return createSuccessResponse({ questions, source });
   } catch (error) {
     console.error("Error in AI suggestion route:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to generate survey questions"
     );
   }
 }
@@ -165,7 +232,6 @@ function parseQuestionsFromContent(content: string) {
       }
     } catch (initialError) {
       // If direct parsing fails, try to extract a JSON array from the content
-      console.error("Initial JSON parse failed:", initialError);
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
