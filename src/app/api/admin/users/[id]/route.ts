@@ -32,7 +32,8 @@ export async function GET(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid user ID format"
+        "Invalid user ID format",
+        error
       );
     }
 
@@ -83,7 +84,8 @@ export async function PATCH(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid user ID format"
+        "Invalid user ID format",
+        error
       );
     }
 
@@ -167,7 +169,8 @@ export async function DELETE(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid user ID format"
+        "Invalid user ID format",
+        error
       );
     }
 

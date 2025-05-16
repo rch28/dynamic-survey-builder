@@ -1,7 +1,5 @@
 import type { NextRequest } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getServerSession } from "@/lib/auth/getServerSession";
-import { isAdmin, requireAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { checkDatabaseConnection } from "@/lib/db";
 import {
   createErrorResponse,
