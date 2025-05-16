@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       ...ownedSurveys.map((survey) => ({ ...survey, owned: true })),
       ...collaborativeSurveys,
     ];
-    const totalCount = ownedSurveys.length + collaborations.length;
+    const totalCount = ownedSurveys.length + collaborativeSurveys.length;
     return createSuccessResponse({
       surveys: allSurveys,
       pagination: {

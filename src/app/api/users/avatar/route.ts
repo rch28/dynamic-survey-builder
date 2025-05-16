@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         const oldPath = currentUser.avatar_url.split("/").pop();
         if (oldPath) {
           await supabaseAdmin.storage
-            .from("user-avatars")
+            .from("avatars")
             .remove([`avatars/${oldPath}`]);
         }
       } catch (deleteError) {
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
     }
 
     // Log the activity
-    await logActivity(user.id, "update_avatar", "user", user.id, {
+    await logActivity(user.id, "UPDATED_AVATAR", "user", user.id, {
       updated_fields: ["avatar_url"],
     });
 

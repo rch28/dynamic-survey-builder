@@ -84,7 +84,7 @@ export async function checkSurveyAccess(
       .single();
 
     if (survey) {
-      return { success: true, role: "OWNER" };
+      return { success: true, role: "owner" };
     }
 
     // If not the owner, check if they're a collaborator
@@ -139,7 +139,7 @@ export async function logActivity(
   action: string,
   resourceType: string,
   resourceId: string,
-  details?: Record<string, any>
+  details?: Record<string, unknown>
 ) {
   if (!supabaseAdmin) return;
 
