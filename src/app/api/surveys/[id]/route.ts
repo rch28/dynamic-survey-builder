@@ -1,7 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import { createClient } from "@/utils/supabase/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import {
+  checkDatabaseConnection,
+  checkSurveyAccess,
+  logActivity,
+} from "@/lib/db";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import { requireAuth } from "@/lib/auth";
+import {
+  formatValidationErrors,
+  uuidSchema,
+  validateRequest,
+} from "@/lib/validation";
+import { surveySchema } from "@/types/survey";
 
 // Common function to get authenticated user ID to avoid repetition
 async function getUserId(): Promise<string | null> {
@@ -26,34 +43,36 @@ function getSurveyIdFromUrl(request: NextRequest): string | null {
   const pathSegments = request.nextUrl.pathname.split("/");
   return pathSegments[pathSegments.length - 1] || null;
 }
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
     // Extract the id from params immediately
-    const surveyId = getSurveyIdFromUrl(request);
-    if (!surveyId) {
-      return NextResponse.json({ error: "Survey ID missing" }, { status: 400 });
+    const { id } = await params;
+    try {
+      uuidSchema.parse(id);
+    } catch (error) {
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        "Invalid survey ID format"
+      );
     }
 
-    //  check if user already exists
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    logApiRequest("GET", "/api/surveys/[id]", user.id);
+
     // First, check if user is the owner
     const { data: ownedSurvey, error: ownedError } = await supabaseAdmin
       .from("surveys")
       .select("*")
-      .eq("id", surveyId)
-      .eq("user_id", userId)
+      .eq("id", id)
+      .eq("user_id", user.id)
       .single();
 
     if (ownedSurvey && !ownedError) {
@@ -65,23 +84,20 @@ export async function GET(request: NextRequest) {
         .single();
 
       // User is the owner, return with ownership flag and user data
-      return NextResponse.json(
-        {
-          survey: {
-            ...ownedSurvey,
-            isOwner: true,
-            user: userData || null,
-          },
+      return createSuccessResponse({
+        survey: {
+          ...ownedSurvey,
+          isOwner: true,
+          user: userData || null,
         },
-        { status: 200 }
-      );
+      });
     }
     // If not the owner, check if user is a collaborator
     const { data: collaboration, error: collabError } = await supabaseAdmin
       .from("collaborators")
       .select(" role, survey_id")
-      .eq("survey_id", surveyId)
-      .eq("user_id", userId)
+      .eq("survey_id", id)
+      .eq("user_id", user.id)
       .maybeSingle();
 
     if (collaboration && !collabError) {
@@ -100,87 +116,61 @@ export async function GET(request: NextRequest) {
         .single();
 
       // User is a collaborator, return with role
-      return NextResponse.json(
-        {
-          survey: {
-            ...surveyData,
-            isOwner: false,
-            role: collaboration.role,
-            user: ownerData || null,
-          },
+      return createSuccessResponse({
+        survey: {
+          ...surveyData,
+          isOwner: false,
+          role: collaboration.role,
+          user: ownerData || null,
         },
-        { status: 200 }
-      );
+      });
     }
 
-    return NextResponse.json({ error: "Survey not found" }, { status: 404 });
+    return createErrorResponse(ErrorType.NOT_FOUND, "Survey not found");
   } catch (error) {
     console.error("Error in GET /api/surveys:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch survey" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to fetch survey",
+      error
     );
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+    const { id } = await params;
+    try {
+      uuidSchema.parse(id);
+    } catch (error) {
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        "Invalid survey ID format"
       );
     }
-    const surveyId = getSurveyIdFromUrl(request);
-    if (!surveyId) {
-      return NextResponse.json({ error: "Survey ID missing" }, { status: 400 });
-    }
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    logApiRequest("PUT", "/api/surveys/[id]", user.id);
 
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
+    const accessCheck = await checkSurveyAccess(id, user.id, "EDITOR");
+    if (!accessCheck.success) return accessCheck.error;
+    const body = await request.json();
+    const validation = await validateRequest(surveySchema, body);
+    if (!validation.success) {
+      return createErrorResponse(
+        ErrorType.VALIDATION_ERROR,
+        "Invalid survey data",
+        formatValidationErrors(validation.error)
       );
     }
-    const surveyData = await request.json();
-    if (!surveyData || !surveyData.title || !surveyData.questions) {
-      return NextResponse.json(
-        { error: "Title and questions are required" },
-        { status: 400 }
-      );
-    }
-    // Check if user is the owner
-    const { data: ownedSurvey } = await supabaseAdmin
-      .from("surveys")
-      .select("id")
-      .eq("id", surveyId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const isOwner = !!ownedSurvey;
-    let canEdit = isOwner;
-
-    // If not the owner, check if user is a collaborator with editor role
-    if (!isOwner) {
-      const { data: collaboration } = await supabaseAdmin
-        .from("collaborators")
-        .select("role")
-        .eq("survey_id", surveyId)
-        .eq("user_id", userId)
-        .eq("role", "editor")
-        .maybeSingle();
-
-      canEdit = !!collaboration;
-    }
-
-    // Return error if user doesn't have permission
-    if (!canEdit) {
-      return NextResponse.json(
-        { error: "You don't have permission to edit this survey" },
-        { status: 403 }
-      );
-    }
+    const surveyData = validation.data;
 
     // Update survey in Supabase (without the user_id filter so collaborators can edit)
     const { data: updatedSurvey, error } = await supabaseAdmin
@@ -192,130 +182,91 @@ export async function PUT(request: NextRequest) {
         metadata: surveyData.metadata || {},
         updated_at: new Date().toISOString(),
       })
-      .eq("id", surveyId) // Only filter by survey ID, not by user_id
+      .eq("id", id) // Only filter by survey ID, not by user_id
       .select()
       .single();
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Failed to update survey" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to update survey"
       );
     }
-
-    // Activity log with user role context
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: userId,
-      action: "update_survey",
-      activity_type: "survey",
-      resource_id: surveyId,
-      details: {
-        updated_as: isOwner ? "owner" : "collaborator",
-        updated_field: {
-          title: surveyData.title,
-          questions: surveyData.questions,
-          description: surveyData.description,
-          metadata: surveyData.metadata,
-        },
-      },
+    await logActivity(user.id, "UPDATE", "survey", id, {
+      title: surveyData.title,
+      questions: surveyData.questions,
+      description: surveyData.description,
+      metadata: surveyData.metadata,
     });
 
-    // Include role information in the response
-    return NextResponse.json(
-      {
-        survey: {
-          ...updatedSurvey,
-          isOwner,
-          role: isOwner ? null : "editor",
-        },
-      },
-      { status: 200 }
-    );
+    return createSuccessResponse({
+      survey: updatedSurvey,
+    });
   } catch (error) {
     console.error("Error in PUT /api/surveys:", error);
-    return NextResponse.json(
-      { error: "Failed to update survey" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to update survey",
+      error
     );
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+    const { id } = await params;
+    try {
+      uuidSchema.parse(id);
+    } catch (error) {
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        "Invalid survey ID format"
       );
-    }
-    const surveyId = getSurveyIdFromUrl(request);
-    if (!surveyId) {
-      return NextResponse.json({ error: "Survey ID missing" }, { status: 400 });
     }
 
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
+    const authResult = await requireAuth(request);
+    if (authResult.error) return authResult;
+    const user = authResult.user;
+    logApiRequest("DELETE", "/api/surveys/[id]", user.id);
     // Check if user is the owner (only owners can delete surveys)
-    const { data: ownedSurvey } = await supabaseAdmin
+    const ownerShipCheck = await checkSurveyAccess(id, user.id);
+    if (!ownerShipCheck.success) return ownerShipCheck.error;
+
+    // Get survey info before deletion for logging
+    const { data: survey, error: getError } = await supabaseAdmin
       .from("surveys")
-      .select("id")
-      .eq("id", surveyId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!ownedSurvey) {
-      return NextResponse.json(
-        { error: "Only the survey owner can delete this survey" },
-        { status: 403 }
-      );
-    }
-
-    // First delete all collaborators
-    await supabaseAdmin
-      .from("collaborators")
-      .delete()
-      .eq("survey_id", surveyId);
-
-    // Delete survey from Supabase
-    const { error } = await supabaseAdmin
-      .from("surveys")
-      .delete()
-      .eq("id", surveyId);
+      .select("title")
+      .eq("id", id)
+      .single();
+    const { error } = await supabaseAdmin.from("surveys").delete().eq("id", id);
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Failed to delete survey" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to delete survey"
       );
     }
 
-    // Activity log
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: userId,
-      action: "delete_survey",
-      activity_type: "survey",
-      resource_id: surveyId,
-      details: {
-        deleted_as: "owner",
-      },
+    // Log activity
+    await logActivity(user.id, "DELETE", "survey", id, {
+      title: survey?.title || "Unknown",
     });
 
-    return NextResponse.json(
-      { message: "Survey deleted successfully" },
-      { status: 200 }
-    );
+    return createSuccessResponse({ success: true });
   } catch (error) {
     console.error("Error in DELETE /api/surveys:", error);
-    return NextResponse.json(
-      { error: "Failed to delete survey" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to delete survey",
+      error
     );
   }
 }
