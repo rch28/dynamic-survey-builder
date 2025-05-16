@@ -1,19 +1,24 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import type { NextRequest } from "next/server";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import { getCurrentUser } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userCookie = cookieStore.get("user");
+    logApiRequest("GET", "/api/auth/session");
 
-    if (!userCookie) {
-      return NextResponse.json({ user: null }, { status: 200 });
-    }
+    const user = await getCurrentUser();
 
-    const user = JSON.parse(userCookie.value);
-    return NextResponse.json({ user }, { status: 200 });
+    return createSuccessResponse({ user });
   } catch (error) {
     console.error("Session error:", error);
-    return NextResponse.json({ user: null }, { status: 200 });
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to get session"
+    );
   }
 }
