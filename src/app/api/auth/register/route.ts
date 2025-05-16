@@ -1,71 +1,124 @@
-import { supabase } from "@/lib/supabase";
-import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { v4 as uuidv4 } from "uuid";
-// In a real app, you would use a database
-// This is a simplified example using cookies for demo purposes
-export async function POST(request: Request) {
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import { validateRequest, formatValidationErrors } from "@/lib/validation";
+import { hashPassword, checkRateLimit } from "@/lib/auth";
+import { checkDatabaseConnection } from "@/lib/db";
+import { registerSchema } from "@/lib/schemas/register-schema";
+
+export async function POST(request: NextRequest) {
   try {
-    if (!supabase) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
+    logApiRequest("POST", "/api/auth/register");
+
+    // Check database connection
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+
+    // Get client IP for rate limiting
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+
+    // Check rate limit (3 registrations per hour)
+    if (!checkRateLimit(`register:${ip}`, 3, 60 * 60 * 1000)) {
+      return createErrorResponse(
+        ErrorType.RATE_LIMITED,
+        "Too many registration attempts. Please try again later."
       );
     }
-    const { name, email, password } = await request.json();
 
-    // Validate input
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = await validateRequest(registerSchema, body);
+
+    if (!validation.success) {
+      return createErrorResponse(
+        ErrorType.VALIDATION_ERROR,
+        "Invalid registration data",
+        formatValidationErrors(validation.error)
       );
     }
 
-    //  check if user already exists
-    const { data: existingUser } = await supabase
+    const { name, email, password } = validation.data;
+
+    // Check if user already exists
+    const { data: existingUser } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("email", email)
       .single();
+
     if (existingUser) {
-      return NextResponse.json(
-        { error: "User already exists" },
-        { status: 409 }
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        "User with this email already exists"
       );
     }
 
+    // Hash the password
+    const hashedPassword = await hashPassword(password);
+
+    // Create a new user
     const userId = uuidv4();
 
-    // supabase auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    console.log("Auth data:", authData);
-    if (authError) {
-      return NextResponse.json(
-        { error: "Authentication failed", details: authError.message },
-        { status: 500 }
+    // Insert the user into Supabase
+    const { data: newUser, error: insertError } = await supabaseAdmin
+      .from("users")
+      .insert({
+        id: userId,
+        name,
+        email,
+        password_hash: hashedPassword,
+        role: "user",
+        created_at: new Date().toISOString(),
+        last_login: new Date().toISOString(),
+      })
+      .select("id, name, email, role, avatar_url")
+      .single();
+
+    if (insertError || !newUser) {
+      console.error("Error creating user:", insertError);
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Registration failed"
       );
     }
 
-    // Create a user object
-    const user = { id: userId, name, email };
-    const userCookie = JSON.stringify(user);
-    const response = NextResponse.json(
-      { success: true, user },
-      { status: 201 }
-    );
-    response.cookies.set("user", userCookie, {
+    // Create user object for cookie
+    const userForCookie = {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+      avatarUrl: newUser.avatar_url,
+    };
+
+    // Store user in a cookie
+    const userCookie = JSON.stringify(userForCookie);
+    const cookieStore = await cookies();
+
+    cookieStore.set("user", userCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7, // 1 week
       path: "/",
+      sameSite: "lax",
     });
 
-    return response;
+    return createSuccessResponse(
+      {
+        success: true,
+        user: userForCookie,
+      },
+      201
+    );
   } catch (error) {
     console.error("Registration error:", error);
-    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
+    return createErrorResponse(ErrorType.INTERNAL_ERROR, "Registration failed");
   }
 }

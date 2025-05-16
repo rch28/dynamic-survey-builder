@@ -1,44 +1,65 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getServerSession } from "@/lib/auth/getServerSession";
+import type { NextRequest } from "next/server";
+
+import {
+  checkDatabaseConnection,
+  checkSurveyOwnership,
+  logActivity,
+} from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
+import {
+  formatValidationErrors,
+  uuidSchema,
+  validateRequest,
+} from "@/lib/validation";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import { updateCollaboratorSchema } from "@/types/collaboration";
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string; collaboratorId: string }> }
 ) {
   const { id, collaboratorId } = await params;
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    logApiRequest(
+      "PATCH",
+      `/api/surveys/${id}/collaborators/${collaboratorId}`,
+      user.id
+    );
+
+    // Validate ID formats
+    try {
+      uuidSchema.parse(id);
+      uuidSchema.parse(collaboratorId);
+    } catch (error) {
+      return createErrorResponse(ErrorType.BAD_REQUEST, "Invalid ID format", error);
+    }
+    const ownershipCheck = await checkSurveyOwnership(id, user.id);
+    if (!ownershipCheck.success) return ownershipCheck.error;
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = await validateRequest(updateCollaboratorSchema, body);
+
+    if (!validation.success) {
+      return createErrorResponse(
+        ErrorType.VALIDATION_ERROR,
+        "Invalid role data",
+        formatValidationErrors(validation.error)
       );
     }
-    const user = await getServerSession();
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
-    const { role } = await request.json();
-
-    if (!role) {
-      return NextResponse.json({ error: "Role is required" }, { status: 400 });
-    }
-
-    // Check if the current user is the owner
-    const { data: survey, error: surveyError } = await supabaseAdmin
-      .from("surveys")
-      .select("id")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
-
-    if (surveyError && !survey) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { role } = validation.data;
 
     // Update the collaborator's role
     const { data: collaborator, error } = await supabaseAdmin
@@ -51,27 +72,24 @@ export async function PATCH(
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Failed to update collaborator" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to update collaborator"
       );
     }
 
     // Log the activity
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: user.id,
-      action: "update_collaborator",
-      activity_type: "survey",
-      resource_id: id,
-      details: { collaborator_id: collaborator.user_id, role },
+    await logActivity(user.id, "UPDATE_COLLABORATOR", "survey", id, {
+      collaborator_id: collaborator.user_id,
+      role,
     });
 
-    return NextResponse.json({ collaborator }, { status: 200 });
+    return createSuccessResponse({ collaborator });
   } catch (error) {
     console.error("Update collaborator error:", error);
-    return NextResponse.json(
-      { error: "Failed to update collaborator" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to update collaborator"
     );
   }
 }
@@ -82,32 +100,33 @@ export async function DELETE(
 ) {
   const { id, collaboratorId } = await params;
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
-    const user = await getServerSession();
+    // Check authentication
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
+    const user = authResult.user;
+    logApiRequest(
+      "DELETE",
+      `/api/surveys/${id}/collaborators/${collaboratorId}`,
+      user.id
+    );
+
+    // Validate ID formats
+    try {
+      uuidSchema.parse(id);
+      uuidSchema.parse(collaboratorId);
+    } catch (error) {
+      return createErrorResponse(ErrorType.BAD_REQUEST, "Invalid ID format", error);
     }
 
-    // Check if the current user is the owner
-    const { data: survey, error: surveyError } = await supabaseAdmin
-      .from("surveys")
-      .select("id")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
+    // Check database connection
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
 
-    if (surveyError && !survey) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Only the owner can remove collaborators
+    const ownershipCheck = await checkSurveyOwnership(id, user.id);
+    if (!ownershipCheck.success) return ownershipCheck.error;
 
     // Get the collaborator info before deleting
     const { data: collaborator, error: getError } = await supabaseAdmin
@@ -118,9 +137,9 @@ export async function DELETE(
 
     if (getError) {
       console.error("Database error:", getError);
-      return NextResponse.json(
-        { error: "Failed to find collaborator" },
-        { status: 404 }
+      return createErrorResponse(
+        ErrorType.NOT_FOUND,
+        "Failed to find collaborator"
       );
     }
 
@@ -133,27 +152,23 @@ export async function DELETE(
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Failed to remove collaborator" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to remove collaborator"
       );
     }
 
     // Log the activity
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: user.id,
-      action: "remove_collaborator",
-      activity_type: "survey",
-      resource_id: id,
-      details: { collaborator_id: collaborator.user_id },
+    await logActivity(user.id, "REMOVE_COLLABORATOR", "survey", id, {
+      collaborator_id: collaborator.user_id,
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return createSuccessResponse({ success: true });
   } catch (error) {
     console.error("Remove collaborator error:", error);
-    return NextResponse.json(
-      { error: "Failed to remove collaborator" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to remove collaborator"
     );
   }
 }

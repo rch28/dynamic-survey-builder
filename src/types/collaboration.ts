@@ -1,3 +1,6 @@
+import { collaboratorRoleSchema, emailSchema } from "@/lib/validation";
+import { z } from "zod";
+
 export enum CollaboratorRole {
   OWNER = "owner",
   EDITOR = "editor",
@@ -32,3 +35,12 @@ export interface ActivityLog {
     email: string;
   };
 }
+
+export const addCollaboratorSchema = z.object({
+  email: emailSchema,
+  role: collaboratorRoleSchema.default(CollaboratorRole.VIEWER),
+});
+
+export const updateCollaboratorSchema = z.object({
+  role: collaboratorRoleSchema,
+});
