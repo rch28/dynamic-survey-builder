@@ -1,6 +1,4 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "@/lib/auth/getServerSession";
-import { isAdmin, requireAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import {
   createErrorResponse,
   createSuccessResponse,
