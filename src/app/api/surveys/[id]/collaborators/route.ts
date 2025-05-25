@@ -38,7 +38,8 @@ export async function GET(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid survey ID format",error
+        "Invalid survey ID format",
+        error
       );
     }
     const accessCheck = await checkSurveyAccess(id, user.id);
@@ -46,8 +47,8 @@ export async function GET(
 
     const searchParams = new URL(request.url).searchParams;
     const validatedParams = paginationSchema.parse({
-      page: searchParams.get("page"),
-      limit: searchParams.get("limit"),
+      page: searchParams.get("page") || 1,
+      limit: searchParams.get("limit") || 20,
     });
     const { page, limit } = validatedParams;
     const offset = (page - 1) * limit;
@@ -91,7 +92,7 @@ export async function GET(
     }
 
     // Transform the data to match our types
-    const formattedCollaborators = collaborators.map((c) => ({
+    const formattedCollaborators = collaborators?.map((c) => ({
       id: c.id,
       surveyId: c.survey_id,
       userId: c.user_id,
@@ -142,7 +143,8 @@ export async function POST(
     } catch (error) {
       return createErrorResponse(
         ErrorType.BAD_REQUEST,
-        "Invalid survey ID format",error
+        "Invalid survey ID format",
+        error
       );
     }
 
