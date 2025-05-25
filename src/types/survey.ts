@@ -86,8 +86,12 @@ export const surveyMetadataSchema = z.object({
   category: z.string().optional(),
   isPublic: z.boolean().default(false),
   allowAnonymousResponses: z.boolean().default(true),
-  startDate: z.date().optional(),
-  endDate: z.date().optional(),
+  startDate: z
+    .union([z.date(), z.string().transform((str) => new Date(str))])
+    .optional(),
+  endDate: z
+    .union([z.date(), z.string().transform((str) => new Date(str))])
+    .optional(),
   estimatedCompletionTime: z.number().optional(),
 });
 
