@@ -31,7 +31,7 @@ export async function GET(
     const authResult = await requireAuth(request);
     if (!authResult.success) return authResult.error;
     const user = authResult.user;
-    logApiRequest("GET", "/api/surveys/[id]/collaborators", user.id);
+    logApiRequest("GET", `/api/surveys/${id}/collaborators`, user.id);
 
     try {
       uuidSchema.parse(id);
@@ -76,7 +76,6 @@ export async function GET(
       `,
         {
           count: "exact",
-          head: true,
         }
       )
       .eq("survey_id", id)
