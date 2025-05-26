@@ -31,8 +31,8 @@ export const paginationSchema = z.object({
 export type PaginationType = z.infer<typeof paginationSchema>;
 
 export const dateRangeSchema = z.object({
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: z.string().datetime().nullish(),
+  endDate: z.string().datetime().nullish(),
 });
 
 export const collaboratorRoleSchema = z.enum(["viewer", "editor", "owner"]);
