@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { Survey } from "@/types/survey";
 import { requireAdmin } from "@/lib/auth";
 import {
