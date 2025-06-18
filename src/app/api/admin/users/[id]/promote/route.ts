@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { isAdmin } from "@/lib/auth/isAdmin";
+import { isAdmin } from "@/lib/auth";
+import { checkDatabaseConnection } from "@/lib/db";
 
 export async function POST(
   request: Request,
@@ -8,12 +8,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
+    const checkDb = checkDatabaseConnection();
+    if (!checkDb.success) return checkDb.error;
+    const supabaseAdmin = checkDb.client;
 
     // Verify admin status
     const adminCheck = await isAdmin();

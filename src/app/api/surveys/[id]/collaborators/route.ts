@@ -1,7 +1,22 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { CollaboratorRole } from "@/types/collaboration";
-import { getServerSession } from "@/lib/auth/getServerSession";
+import { addCollaboratorSchema, CollaboratorRole } from "@/types/collaboration";
+import {
+  checkDatabaseConnection,
+  checkSurveyAccess,
+  logActivity,
+} from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import {
+  formatValidationErrors,
+  paginationSchema,
+  uuidSchema,
+  validateRequest,
+} from "@/lib/validation";
 
 export async function GET(
   request: Request,
@@ -9,46 +24,41 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+    const user = authResult.user;
+    logApiRequest("GET", `/api/surveys/${id}/collaborators`, user.id);
+
+    try {
+      uuidSchema.parse(id);
+    } catch (error) {
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        "Invalid survey ID format",
+        error
       );
     }
-    const user = await getServerSession();
+    const accessCheck = await checkSurveyAccess(id, user.id);
+    if (!accessCheck.success) return accessCheck.error;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
-      );
-    }
-
-    // Check if the user has access to the survey
-    const { data: survey, error: surveyError } = await supabaseAdmin
-      .from("surveys")
-      .select("id")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
-
-    if (surveyError && !survey) {
-      // If not the owner, check if they're a collaborator
-      const { data: collaborator, error: collaboratorError } =
-        await supabaseAdmin
-          .from("collaborators")
-          .select("id")
-          .eq("survey_id", id)
-          .eq("user_id", user.id)
-          .single();
-
-      if (collaboratorError && !collaborator) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-    }
+    const searchParams = new URL(request.url).searchParams;
+    const validatedParams = paginationSchema.parse({
+      page: searchParams.get("page") || 1,
+      limit: searchParams.get("limit") || 20,
+    });
+    const { page, limit } = validatedParams;
+    const offset = (page - 1) * limit;
 
     // Fetch collaborators
-    const { data: collaborators, error } = await supabaseAdmin
+    const {
+      data: collaborators,
+      error,
+      count,
+    } = await supabaseAdmin
       .from("collaborators")
       .select(
         `
@@ -63,37 +73,53 @@ export async function GET(
           email,
           avatar_url
         )
-      `
+      `,
+        {
+          count: "exact",
+        }
       )
-      .eq("survey_id", id);
+      .eq("survey_id", id)
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch collaborators" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to fetch collaborators",
+        error
       );
     }
 
     // Transform the data to match our types
-    const formattedCollaborators = collaborators.map((c) => ({
+    const formattedCollaborators = collaborators?.map((c) => ({
       id: c.id,
       surveyId: c.survey_id,
       userId: c.user_id,
       role: c.role,
       createdAt: c.created_at,
-      user: c.users,
+      user: c.users || {
+        id: "",
+        name: "",
+        email: "",
+        avatarUrl: "",
+      },
     }));
 
-    return NextResponse.json(
-      { collaborators: formattedCollaborators },
-      { status: 200 }
-    );
+    return createSuccessResponse({
+      collaborators: formattedCollaborators,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        pages: count ? Math.ceil(count / limit) : 0,
+      },
+    });
   } catch (error) {
     console.error("Get collaborators error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch collaborators" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to fetch collaborators",
+      error
     );
   }
 }
@@ -104,50 +130,45 @@ export async function POST(
 ) {
   const { id } = await params;
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
+    const authResult = await requireAuth(request);
+    if (!authResult.success) return authResult.error;
+
+    const user = authResult.user;
+    logApiRequest("POST", `/api/surveys/${id}/collaborators`, user.id);
+
+    // Validate ID format
+    try {
+      uuidSchema.parse(id);
+    } catch (error) {
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        "Invalid survey ID format",
+        error
       );
     }
-    const currentUser = await getServerSession();
 
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 }
+    // Check database connection
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
+
+    // Check if user has edit access to the survey
+    const accessCheck = await checkSurveyAccess(id, user.id, "EDITOR");
+    if (!accessCheck.success) return accessCheck.error;
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validation = await validateRequest(addCollaboratorSchema, body);
+
+    if (!validation.success) {
+      return createErrorResponse(
+        ErrorType.VALIDATION_ERROR,
+        "Invalid collaborator data",
+        formatValidationErrors(validation.error)
       );
     }
 
-    const { email, role } = await request.json();
-
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
-
-    // Check if the current user is the owner or an editor
-    const { data: survey, error: surveyError } = await supabaseAdmin
-      .from("surveys")
-      .select("id")
-      .eq("id", id)
-      .eq("user_id", currentUser.id)
-      .single();
-
-    if (surveyError && !survey) {
-      // If not the owner, check if they're an editor
-      const { data: collaborator, error: collaboratorError } =
-        await supabaseAdmin
-          .from("collaborators")
-          .select("role")
-          .eq("survey_id", id)
-          .eq("user_id", currentUser.id)
-          .eq("role", CollaboratorRole.EDITOR)
-          .single();
-
-      if (collaboratorError || !collaborator) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-    }
+    const { email, role } = validation.data;
 
     // Find the user by email
     let userData;
@@ -170,9 +191,10 @@ export async function POST(
 
       if (createUserError || !newUser) {
         console.error("Error creating user:", createUserError);
-        return NextResponse.json(
-          { error: "Failed to create user" },
-          { status: 500 }
+        return createErrorResponse(
+          ErrorType.INTERNAL_ERROR,
+          "Failed to create user",
+          createUserError
         );
       }
 
@@ -191,9 +213,9 @@ export async function POST(
       .single();
 
     if (existingCollaborator) {
-      return NextResponse.json(
-        { error: "User is already a collaborator" },
-        { status: 400 }
+      return createErrorResponse(
+        ErrorType.BAD_REQUEST,
+        "User is already a collaborator"
       );
     }
 
@@ -210,23 +232,17 @@ export async function POST(
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Failed to add collaborator" },
-        { status: 500 }
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to add collaborator",
+        error
       );
     }
 
-    // Log the activity
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: currentUser.id,
-      action: "add_collaborator",
-      activity_type: "survey",
-      resource_id: id,
-      details: {
-        collaborator_id: userData.id,
-        collaborator_email: email,
-        role,
-      },
+    await logActivity(user.id, "ADD_COLLABORATOR", "survey", id, {
+      collaborator_id: userData.id,
+      collaborator_email: email,
+      role,
     });
 
     // Return the collaborator with user info
@@ -244,15 +260,17 @@ export async function POST(
       },
     };
 
-    return NextResponse.json(
-      { collaborator: formattedCollaborator },
-      { status: 201 }
+    return createSuccessResponse(
+      {
+        collaborator: formattedCollaborator,
+      },
+      201
     );
   } catch (error) {
     console.error("Add collaborator error:", error);
-    return NextResponse.json(
-      { error: "Failed to add collaborator" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to add collaborator"
     );
   }
 }

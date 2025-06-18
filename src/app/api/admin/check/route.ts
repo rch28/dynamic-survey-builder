@@ -1,23 +1,35 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "@/lib/auth/getServerSession";
+import { NextRequest } from "next/server";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import { requireAdmin } from "@/lib/auth";
 
-export async function GET() {
+// Simple in-memory cache for admin status
+const adminCache: Record<string, { isAdmin: boolean; expires: number }> = {};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+export async function GET(request: NextRequest) {
   try {
-    const user = await getServerSession();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    logApiRequest("GET", "/api/admin/check");
+    const adminResult = await requireAdmin(request);
 
-    if (user.user_metadata.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // If successful, user is an admin
+    if (adminResult.success) {
+      // Cache the result
+      adminCache[adminResult.user.id] = {
+        isAdmin: true,
+        expires: Date.now() + CACHE_TTL,
+      };
 
-    return NextResponse.json({ isAdmin: true }, { status: 200 });
+      return createSuccessResponse({ isAdmin: true });
+    }
   } catch (error) {
     console.error("Admin check error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to check admin status"
     );
   }
 }

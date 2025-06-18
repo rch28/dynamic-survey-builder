@@ -159,7 +159,7 @@ export function VisitorStats() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  {stats.visitorsByDay.length > 0
+                  {stats.visitorsByDay?.length > 0
                     ? (
                         stats.visitorsByDay.reduce(
                           (sum, day) => sum + day.visitors,

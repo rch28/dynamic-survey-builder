@@ -1,8 +1,13 @@
-import { getServerSession } from "@/lib/auth/getServerSession";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Survey } from "@/types/survey";
-import { isAdmin } from "@/lib/auth/isAdmin";
-import { createClient } from "@/utils/supabase/server";
+import { requireAdmin } from "@/lib/auth";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  ErrorType,
+  logApiRequest,
+} from "@/lib/api-utils";
+import { checkDatabaseConnection } from "@/lib/db";
 
 interface PopularSurvey {
   survey_id: string;
@@ -22,24 +27,18 @@ interface PopularSurveyWithDetails extends SurveyDetail {
   responses: number;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const supabaseAdmin = await createClient();
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: "Database connection not available" },
-        { status: 503 }
-      );
-    }
-    const user = await getServerSession();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    // check if user is admin
-    const isAdminUser = await isAdmin();
-    if (!isAdminUser) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const adminResult = await requireAdmin(request);
+    if (!adminResult.success) return adminResult.error;
+
+    const user = adminResult.user;
+    logApiRequest("GET", "/api/admin/analytics", user.id);
+
+    // Check database connection
+    const dbCheck = checkDatabaseConnection();
+    if (!dbCheck.success) return dbCheck.error;
+    const supabaseAdmin = dbCheck.client;
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "7days"; // 24h, 7days, 30days, custom
@@ -70,67 +69,73 @@ export async function GET(request: Request) {
       timeRange = lastWeek.toISOString();
     }
 
-    // Get surveys created over time
-    const { data: surveyCreationData, error: surveyCreationError } =
-      await supabaseAdmin
+    // Use Promise.all to run queries in parallel
+    const [
+      surveyCreationResult,
+      responseResult,
+      popularSurveysResult,
+      countResults,
+    ] = await Promise.all([
+      // Get surveys created over time
+      supabaseAdmin
         .from("surveys")
         .select("created_at")
         .gte("created_at", timeRange)
         .lte("created_at", endDate || now.toISOString())
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true }),
 
-    if (surveyCreationError) {
-      console.error(
-        "Error fetching survey creation data:",
-        surveyCreationError
-      );
-      return NextResponse.json(
-        { error: "Failed to fetch survey analytics" },
-        { status: 500 }
-      );
-    }
+      // Get responses over time
+      supabaseAdmin
+        .from("responses")
+        .select("created_at")
+        .gte("created_at", timeRange)
+        .lte("created_at", endDate || now.toISOString())
+        .order("created_at", { ascending: true }),
 
-    // Get responses over time
-    const { data: responseData, error: responseError } = await supabaseAdmin
-      .from("responses")
-      .select("created_at")
-      .gte("created_at", timeRange)
-      .lte("created_at", endDate || now.toISOString())
-      .order("created_at", { ascending: true });
-
-    if (responseError) {
-      console.error("Error fetching response data:", responseError);
-    }
-
-    // Get most popular surveys
-    const { data: popularSurveys, error: popularSurveysError } =
-      await supabaseAdmin.rpc("get_popular_surveys", {
+      // Get most popular surveys
+      supabaseAdmin.rpc("get_popular_surveys", {
         start_time: timeRange,
         end_time: endDate || now.toISOString(),
-      });
+      }),
 
-    if (popularSurveysError) {
-      console.error("Error fetching popular surveys:", popularSurveysError);
+      // Get total counts
+      Promise.all([
+        supabaseAdmin.from("surveys").select("id", { count: "exact" }),
+        supabaseAdmin.from("responses").select("id", { count: "exact" }),
+        supabaseAdmin.from("users").select("id", { count: "exact" }),
+      ]),
+    ]);
+
+    // Handle errors
+    if (surveyCreationResult.error) {
+      console.error(
+        "Error fetching survey creation data:",
+        surveyCreationResult.error
+      );
+      return createErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        "Failed to fetch survey analytics"
+      );
     }
 
     // If we have popular surveys, get their details
     let popularSurveysWithDetails: PopularSurveyWithDetails[] = [];
-    if (popularSurveys?.length) {
-      const surveyIds = popularSurveys.map((s: PopularSurvey) => s.survey_id);
+    if (popularSurveysResult?.data?.length) {
+      const surveyIds = popularSurveysResult?.data.map(
+        (s: PopularSurvey) => s.survey_id
+      );
 
       const { data: surveyDetails, error: detailsError } = await supabaseAdmin
         .from("surveys")
         .select("id, title, user_id, users (name)")
         .in("id", surveyIds);
 
-      if (detailsError) {
-        console.error("Error fetching survey details:", detailsError);
-      } else if (surveyDetails) {
+      if (!detailsError && surveyDetails) {
         // Merge survey details with response counts
         popularSurveysWithDetails = surveyDetails
           .map((survey) => {
             const responses =
-              popularSurveys.find(
+              popularSurveysResult?.data.find(
                 (s: PopularSurvey) => s.survey_id === survey.id
               )?.count || 0;
             return {
@@ -145,16 +150,13 @@ export async function GET(request: Request) {
       }
     }
 
-    // Get total counts
-    const [surveyCount, responseCount, userCount] = await Promise.all([
-      supabaseAdmin.from("surveys").select("id", { count: "exact" }),
-      supabaseAdmin.from("responses").select("id", { count: "exact" }),
-      supabaseAdmin.from("users").select("id", { count: "exact" }),
-    ]);
-
     // Process survey creation data by day for charting
-    const surveyCreationByDay = processDataByDay(surveyCreationData || []);
+    const surveyCreationByDay = processDataByDay(
+      surveyCreationResult.data || []
+    );
 
+    // Process response data by day for charting
+    const responsesByDay = processDataByDay(responseResult.data || []);
     const { data: surveyCategories } = await supabaseAdmin
       .from("surveys")
       .select("metadata")
@@ -163,23 +165,23 @@ export async function GET(request: Request) {
 
     const categoryData = processCategoryData(surveyCategories || []);
     // Process response data by day for charting
-    const responsesByDay = processDataByDay(responseData || []);
-    return NextResponse.json({
+
+    return createSuccessResponse({
       surveyCreation: surveyCreationByDay,
-      responsesPerDay: responsesByDay,
+      responses: responsesByDay,
       popularSurveys: popularSurveysWithDetails,
+      surveyCategories: categoryData,
       totals: {
-        surveys: surveyCount.count || 0,
-        responses: responseCount.count || 0,
-        users: userCount.count || 0,
+        surveys: countResults[0].count || 0,
+        responses: countResults[1].count || 0,
+        users: countResults[2].count || 0,
       },
-      surveysByCategory: categoryData,
     });
   } catch (error) {
     console.error("Error in GET /api/admin/analytics:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch analytics" },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      "Failed to fetch analytics data"
     );
   }
 }
